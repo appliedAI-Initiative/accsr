@@ -41,7 +41,7 @@ class RemoteStorage:
         return self._bucket
 
     def pull_file(
-            self, remote_path: str, local_base_dir=None, overwrite_existing=False
+        self, remote_path: str, local_base_dir=None, overwrite_existing=False
     ) -> Optional[Object]:
         """
         Pull a file from remote storage. If a file with the same name already exists locally,
@@ -69,7 +69,7 @@ class RemoteStorage:
         return remote_object
 
     def pull_directory(
-            self, remote_dir, local_base_dir=None, overwrite_existing=False
+        self, remote_dir, local_base_dir=None, overwrite_existing=False
     ) -> List[Object]:
         """
         Pull all files from remote directory (including all subdirectories) to local_base_dir. Files with the same name
@@ -128,8 +128,12 @@ class RemoteStorage:
                 overwrite_existing=overwrite_existing,
             )
 
-    def push_directory(self, path: str, local_path_prefix: Optional[str] = None, overwrite_existing=True) -> List[
-        Object]:
+    def push_directory(
+        self,
+        path: str,
+        local_path_prefix: Optional[str] = None,
+        overwrite_existing=True,
+    ) -> List[Object]:
         """
         Upload a directory from the given local path into the remote storage.
 
@@ -140,21 +144,25 @@ class RemoteStorage:
         :param overwrite_existing: If a remote object already exists, overwrite it?
         :return: A list of :class:`Object` instances for all created objects
         """
-        log.debug(f'push_object({path=}, {local_path_prefix=}, {overwrite_existing=}')
+        log.debug(f"push_object({path=}, {local_path_prefix=}, {overwrite_existing=}")
         objects = []
 
         local_path = self._get_push_local_path(path, local_path_prefix)
         if not os.path.isdir(local_path):
-            raise FileNotFoundError(f'Local path {local_path} does not refer to a directory')
+            raise FileNotFoundError(
+                f"Local path {local_path} does not refer to a directory"
+            )
 
         for root, _, files in os.walk(local_path):
-            log.debug(f'Root directory: {root}')
-            log.debug(f'Files: {files}')
+            log.debug(f"Root directory: {root}")
+            log.debug(f"Files: {files}")
 
             root_path = Path(root)
             for file in files:
-                log.debug(f'Upload: {file=}, {root_path=}')
-                obj = self.push_file(file, root_path, overwrite_existing=overwrite_existing)
+                log.debug(f"Upload: {file=}, {root_path=}")
+                obj = self.push_file(
+                    file, root_path, overwrite_existing=overwrite_existing
+                )
                 objects.append(obj)
         return objects
 
@@ -184,12 +192,14 @@ class RemoteStorage:
         """
         # Parameter validation
         if local_path_prefix and Path(path).is_absolute():
-            raise ValueError(f'{path} is an absolute path and local_path_prefix was specified')
+            raise ValueError(
+                f"{path} is an absolute path and local_path_prefix was specified"
+            )
 
         if Path(path).is_absolute():
             return path
         else:
-            return os.path.join(local_path_prefix or '', path)
+            return os.path.join(local_path_prefix or "", path)
 
     def _get_push_remote_path(self, local_path: str) -> str:
         """
@@ -198,9 +208,14 @@ class RemoteStorage:
         :param local_path:
         :return:
         """
-        return '/'.join([self.remote_base_path, local_path]).replace('//', '/')
+        return "/".join([self.remote_base_path, local_path]).replace("//", "/")
 
-    def push_file(self, path: str, local_path_prefix: Optional[str] = None, overwrite_existing=True) -> Object:
+    def push_file(
+        self,
+        path: str,
+        local_path_prefix: Optional[str] = None,
+        overwrite_existing=True,
+    ) -> Object:
         """
         Upload a local file into the remote storage.
 
@@ -211,22 +226,31 @@ class RemoteStorage:
         :param overwrite_existing: If the remote object already exists, overwrite it?
         :return: A :class:`Object` instance referring to the created object
         """
-        log.debug(f'push_file({path=}, {local_path_prefix=}, {self.remote_base_path=}, {overwrite_existing=}')
+        log.debug(
+            f"push_file({path=}, {local_path_prefix=}, {self.remote_base_path=}, {overwrite_existing=}"
+        )
 
         local_path = self._get_push_local_path(path, local_path_prefix)
         if not os.path.isfile(local_path):
-            raise FileNotFoundError(f'Local path {local_path} does not refer to a file')
+            raise FileNotFoundError(f"Local path {local_path} does not refer to a file")
         remote_path = self._get_push_remote_path(local_path)
 
         remote_obj = self.bucket.list_objects(remote_path)
         if remote_obj and not overwrite_existing:
-            raise RuntimeError(f'Remote object {remote_path} already exists and overwrite_existing=False')
+            raise RuntimeError(
+                f"Remote object {remote_path} already exists and overwrite_existing=False"
+            )
 
-        log.debug(f'Uploading: {local_path} --> {remote_path}')
+        log.debug(f"Uploading: {local_path} --> {remote_path}")
         remote_obj = self.bucket.upload_object(local_path, remote_path)
         return remote_obj
 
-    def push(self, path: str, local_path_prefix: Optional[str] = None, overwrite_existing=True) -> List[Object]:
+    def push(
+        self,
+        path: str,
+        local_path_prefix: Optional[str] = None,
+        overwrite_existing=True,
+    ) -> List[Object]:
         """
         Upload a local file or directory into the remote storage.
 
@@ -250,7 +274,9 @@ class RemoteStorage:
         elif os.path.isdir(local_path):
             return self.push_directory(path, local_path_prefix, overwrite_existing)
         else:
-            raise FileNotFoundError(f'Local path {local_path} does not refer to a file or directory')
+            raise FileNotFoundError(
+                f"Local path {local_path} does not refer to a file or directory"
+            )
 
 
 __default_remote_storage = None
