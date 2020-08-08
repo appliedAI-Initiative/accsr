@@ -52,6 +52,8 @@ class RemoteStorage:
         :param overwrite_existing: Whether to overwrite_existing existing local files
         :return: if a file was downloaded, returns a :class:`Object` instance referring to it
         """
+        if local_base_dir is None:
+            local_base_dir = ""
         download_path = os.path.join(local_base_dir, remote_path)
         if os.path.exists(download_path):
             if not overwrite_existing:
@@ -69,7 +71,7 @@ class RemoteStorage:
         return remote_object
 
     def pull_directory(
-        self, remote_dir, local_base_dir=None, overwrite_existing=False
+        self, remote_dir, local_base_dir: str = None, overwrite_existing=False
     ) -> List[Object]:
         """
         Pull all files from remote directory (including all subdirectories) to local_base_dir. Files with the same name
