@@ -4,6 +4,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from config import get_config, DatabaseConfig
+from persistence.orm import Base
+
+
+# TODO: set up develop database and test these methods in ci
 
 
 def get_engine(db_config: DatabaseConfig = None):
@@ -34,3 +38,14 @@ def session_scope(db_config: DatabaseConfig = None):
         raise e
     finally:
         session.close()
+
+
+def get_table_model(table_name: str, db_config: DatabaseConfig = None):
+    with session_scope(db_config) as session:
+        session: Session
+        table = Base.metadata.tables.get(table_name)
+        if table is None:
+            raise RuntimeError(
+                f"No such table in database {session.bind.url.database}: {table_name}"
+            )
+    return table
