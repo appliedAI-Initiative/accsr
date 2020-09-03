@@ -48,10 +48,10 @@ class RemoteStorage:
         will not download anything unless overwrite_existing is True
 
         :param path: remote path on storage bucket relative to the configured remote base path.
-        e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
+            e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
         :param local_base_dir: Local base directory for constructing local path
-        e.g 'tfe_vida_data' yields the path
-        'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
+            e.g 'tfe_vida_data' yields the path
+            'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
         :param overwrite_existing: Whether to overwrite_existing existing local files
         :return: if a file was downloaded, returns a :class:`Object` instance referring to it
         """
@@ -81,10 +81,10 @@ class RemoteStorage:
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
 
         :param path: remote path relative to the configured remote base path.
-        e.g. 'data/ground_truth/full_workflow'
+            e.g. 'data/ground_truth/full_workflow'
         :param local_base_dir: Local base directory for constructing local path
-        e.g 'tfe_vida_data' yields a path
-        'tfe_vida_data/data/ground_truth/full_workflow' in the above example
+            e.g 'tfe_vida_data' yields a path
+            'tfe_vida_data/data/ground_truth/full_workflow' in the above example
         :param overwrite_existing: Overwrite directory if exists locally
         :return: list of :class:`Object` instances referring to all downloaded files
         """
@@ -114,10 +114,10 @@ class RemoteStorage:
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
 
         :param path: remote path on storage bucket relative to the configured remote base path.
-        e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
+            e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
         :param local_base_dir: Local base directory for constructing local path
-        e.g 'tfe_vida_data' yields a path
-        'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
+            e.g 'tfe_vida_data' yields a path
+            'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
         :param overwrite_existing: Overwrite file if exists locally
         :return: list of :class:`Object` instances referring to all downloaded files
         """
