@@ -47,8 +47,11 @@ class RemoteStorage:
         Pull a file from remote storage. If a file with the same name already exists locally,
         will not download anything unless overwrite_existing is True
 
-        :param remote_path: path to the file relative to the configured remote base path.
-        :param local_base_dir: directory to which the file will be pulled
+        :param path: remote path on storage bucket relative to the configured remote base path.
+        e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
+        :param local_base_dir: Local base directory for constructing local path
+        e.g 'tfe_vida_data' yields the path
+        'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
         :param overwrite_existing: Whether to overwrite_existing existing local files
         :return: if a file was downloaded, returns a :class:`Object` instance referring to it
         """
@@ -77,9 +80,12 @@ class RemoteStorage:
         Pull all files from remote directory (including all subdirectories) to local_base_dir. Files with the same name
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
 
-        :param remote_dir: path to the remote dir relative to the configured remote base path.
-        :param local_base_dir: local directory to which results will be pulled
-        :param overwrite_existing:
+        :param path: remote path relative to the configured remote base path.
+        e.g. 'data/ground_truth/full_workflow'
+        :param local_base_dir: Local base directory for constructing local path
+        e.g 'tfe_vida_data' yields a path
+        'tfe_vida_data/data/ground_truth/full_workflow' in the above example
+        :param overwrite_existing: Overwrite directory if exists locally
         :return: list of :class:`Object` instances referring to all downloaded files
         """
         remote_path_prefix_len = len(self.remote_base_path) + 1
@@ -104,12 +110,15 @@ class RemoteStorage:
 
     def pull(self, path: str, local_base_dir=None, overwrite_existing=False):
         """
-        Pull either a file or a directory under the given path to local_base_dir. Files with the same name
+        Pull either a file or a directory under the given path relative to local_base_dir. Files with the same name
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
 
-        :param path: remote path relative to the configured remote base path.
-        :param local_base_dir: local directory to which results will be pulled
-        :param overwrite_existing:
+        :param path: remote path on storage bucket relative to the configured remote base path.
+        e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
+        :param local_base_dir: Local base directory for constructing local path
+        e.g 'tfe_vida_data' yields a path
+        'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
+        :param overwrite_existing: Overwrite file if exists locally
         :return: list of :class:`Object` instances referring to all downloaded files
         """
         # directories in the remote storage are not objects, empty directories cannot exist
