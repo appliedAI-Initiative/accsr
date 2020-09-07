@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from config import get_config, DatabaseConfig
-from persistence.orm import Base
+from orm.tables import Base
 
 
 # TODO: set up develop database and test these methods in ci
