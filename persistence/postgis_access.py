@@ -28,7 +28,7 @@ def get_session(db_config: DatabaseConfig = None) -> Session:
 # https://docs.sqlalchemy.org/en/13/orm/session_basics.html#when-do-i-construct-a-session-when-do-i-commit-it-and-when-do-i-close-it
 @contextmanager
 def session_scope(db_config: DatabaseConfig = None):
-    """Provide a transactional scope around a series of operations."""
+    """Provide a transactional scope around a series of operations"""
     session = get_session(db_config)
     try:
         yield session
@@ -38,6 +38,14 @@ def session_scope(db_config: DatabaseConfig = None):
         raise e
     finally:
         session.close()
+
+
+@contextmanager
+def engine_scope(session):
+    """Provide a transactional scope around a database engine"""
+    engine = session.get_bind()
+    yield engine
+    engine.dispose()
 
 
 def get_table_model(table_name: str, db_config: DatabaseConfig = None):
