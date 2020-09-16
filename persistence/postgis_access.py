@@ -15,7 +15,8 @@ def get_engine(db_config: DatabaseConfig = None):
         c = get_config()
         db_config = c.database
     return create_engine(
-        f"postgresql://{db_config.user}:{db_config.pw}@{db_config.host}:{db_config.port}/{db_config.name}"
+        f"postgresql://{db_config.user}:{db_config.pw}@{db_config.host}:{db_config.port}/{db_config.name}",
+        echo=db_config.log_statements,
     )
 
 
