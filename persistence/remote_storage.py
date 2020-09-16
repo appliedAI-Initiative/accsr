@@ -8,6 +8,7 @@ from libcloud.storage.base import StorageDriver, Container, Object
 from libcloud.storage.types import ObjectDoesNotExistError
 
 from config import get_config, RemoteStorageConfig
+from util.files import md5sum
 
 log = logging.getLogger(__name__)
 
@@ -253,6 +254,11 @@ class RemoteStorage:
                 f"Remote object {remote_path} already exists and overwrite_existing=False"
             )
 
+        remote_obj = remote_obj[0]
+        if md5sum(local_path) == remote_obj.hash:
+            log.debug(f"Files are identical, not uploading again")
+            return remote_obj
+
         log.debug(f"Uploading: {local_path} --> {remote_path}")
         remote_obj = self.bucket.upload_object(local_path, remote_path)
         return remote_obj
@@ -267,6 +273,8 @@ class RemoteStorage:
         Upload a local file or directory into the remote storage.
 
         Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
+
+        Remote objects will not be overwritten if their MD5sum matches the local file.
 
         Usage examples::
 
