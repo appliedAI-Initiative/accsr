@@ -57,13 +57,14 @@ class RemoteStorage:
         Pull a file from remote storage. If a file with the same name already exists locally,
         will not download anything unless overwrite_existing is True
         TODO: Change example paths if extracting this method to library
+
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
         :param local_base_dir: Local base directory for constructing local path
             e.g 'tfe_vida_data' yields the path
             'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
         :param overwrite_existing: Whether to overwrite_existing existing local files
-        :return: if a file was downloaded, returns a :class:`Object` instance referring to it
+        :return: if a file was ownloaded, returns a :class:`Object` instance referring to it
         """
         if local_base_dir is None:
             local_base_dir = ""
@@ -90,7 +91,9 @@ class RemoteStorage:
         Pull all files from remote directory (including all subdirectories) to local_base_dir. Files with the same name
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
         TODO: Change example paths if extracting this method to library
-        :param remote_dir:
+
+        :param remote_dir: remote path on storage bucket relative to the configured remote base path.
+            e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
         :param local_base_dir: Local base directory for constructing local path
             e.g 'tfe_vida_data' yields a path
             'tfe_vida_data/data/ground_truth/full_workflow' in the above example
@@ -122,6 +125,7 @@ class RemoteStorage:
         Pull either a file or a directory under the given path relative to local_base_dir. Files with the same name
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
         TODO: Change example paths if extracting this method to library
+
         :param path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
         :param local_base_dir: Local base directory for constructing local path
