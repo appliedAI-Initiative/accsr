@@ -1,26 +1,28 @@
 from contextlib import contextmanager
+from dataclasses import dataclass
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from config import get_config, DatabaseConfig
-from orm.tables import Base
+
+@dataclass
+class DatabaseConfig:
+    host: str
+    name: str
+    user: str
+    pw: str
+    port: str
+    log_statements: bool = False
 
 
-# TODO: set up develop database and test these methods in ci
-
-
-def get_engine(db_config: DatabaseConfig = None):
-    if db_config is None:
-        c = get_config()
-        db_config = c.database
+def get_engine(db_config: DatabaseConfig):
     return create_engine(
         f"postgresql://{db_config.user}:{db_config.pw}@{db_config.host}:{db_config.port}/{db_config.name}",
         echo=db_config.log_statements,
     )
 
 
-def get_session(db_config: DatabaseConfig = None) -> Session:
+def get_session(db_config: DatabaseConfig) -> Session:
     engine = get_engine(db_config=db_config)
     return sessionmaker(bind=engine)()
 
@@ -47,14 +49,3 @@ def engine_scope(session):
     engine = session.get_bind()
     yield engine
     engine.dispose()
-
-
-def get_table_model(table_name: str, db_config: DatabaseConfig = None):
-    with session_scope(db_config) as session:
-        session: Session
-        table = Base.metadata.tables.get(table_name)
-        if table is None:
-            raise RuntimeError(
-                f"No such table in database {session.bind.url.database}: {table_name}"
-            )
-    return table

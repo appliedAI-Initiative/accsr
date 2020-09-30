@@ -2,15 +2,24 @@ import logging.handlers
 import os
 from pathlib import Path
 from typing import Optional, List
+from dataclasses import dataclass
 
 import libcloud
 from libcloud.storage.base import StorageDriver, Container, Object
 from libcloud.storage.types import ObjectDoesNotExistError
 
-from config import get_config, RemoteStorageConfig
-from util.files import md5sum
+from data_access.files import md5sum
 
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class RemoteStorageConfig:
+    key: str
+    secret: str
+    bucket: str
+    base_path: str = ""
+    provider: str = "google_storage"
 
 
 class RemoteStorage:
@@ -48,7 +57,7 @@ class RemoteStorage:
         Pull a file from remote storage. If a file with the same name already exists locally,
         will not download anything unless overwrite_existing is True
         TODO: Change example paths if extracting this method to library
-        :param path: remote path on storage bucket relative to the configured remote base path.
+        :param remote_path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
         :param local_base_dir: Local base directory for constructing local path
             e.g 'tfe_vida_data' yields the path
@@ -82,8 +91,6 @@ class RemoteStorage:
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
         TODO: Change example paths if extracting this method to library
         :param remote_dir:
-        :param path: remote path relative to the configured remote base path.
-            e.g. 'data/ground_truth/full_workflow'
         :param local_base_dir: Local base directory for constructing local path
             e.g 'tfe_vida_data' yields a path
             'tfe_vida_data/data/ground_truth/full_workflow' in the above example
@@ -299,14 +306,3 @@ class RemoteStorage:
             raise FileNotFoundError(
                 f"Local path {local_path} does not refer to a file or directory"
             )
-
-
-__default_remote_storage = None
-
-
-def get_default_remote_storage():
-    global __default_remote_storage
-    c = get_config()
-    if __default_remote_storage is None:
-        __default_remote_storage = RemoteStorage(c.remote_storage)
-    return __default_remote_storage
