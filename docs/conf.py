@@ -42,9 +42,7 @@ extensions = [
 # adding links to source files (this works for gitlab and github like hosts and might need to be adjusted for others)
 # see https://www.sphinx-doc.org/en/master/usage/extensions/linkcode.html#module-sphinx.ext.linkcode
 def linkcode_resolve(domain, info):
-    link_prefix = (
-        "https://gitlab.aai.lab//git@gitlab.aai.lab:resources/data-access.git/blob/develop"
-    )
+    link_prefix = "https://gitlab.aai.lab//git@gitlab.aai.lab:resources/data-access.git/blob/develop"
     if domain != "py":
         return None
     if not info["module"]:
@@ -291,9 +289,7 @@ latex_elements = {
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    ("index", "data_access", "", ["AppliedAI"], 1)
-]
+man_pages = [("index", "data_access", "", ["AppliedAI"], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
