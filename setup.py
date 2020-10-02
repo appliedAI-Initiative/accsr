@@ -12,7 +12,7 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     include_package_data=True,
-    version="0.1.0",
+    version="0.1.1-dev0",
     description="Library for data_access",
     install_requires=open("requirements.txt").readlines(),
     setup_requires=["wheel"],
