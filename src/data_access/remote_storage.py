@@ -56,15 +56,14 @@ class RemoteStorage:
         """
         Pull a file from remote storage. If a file with the same name already exists locally,
         will not download anything unless overwrite_existing is True
-        TODO: Change example paths if extracting this method to library
 
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
-            e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
+            e.g. 'data/ground_truth/some_file.json'
         :param local_base_dir: Local base directory for constructing local path
-            e.g 'tfe_vida_data' yields the path
-            'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
+            e.g 'my/data/dir' yields the path
+            'my/data/dir/data/ground_truth/some_file.json' for the above remote_path example
         :param overwrite_existing: Whether to overwrite_existing existing local files
-        :return: if a file was ownloaded, returns a :class:`Object` instance referring to it
+        :return: if a file was downloaded, returns a :class:`Object` instance referring to it
         """
         if local_base_dir is None:
             local_base_dir = ""
@@ -90,13 +89,12 @@ class RemoteStorage:
         """
         Pull all files from remote directory (including all subdirectories) to local_base_dir. Files with the same name
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
-        TODO: Change example paths if extracting this method to library
 
         :param remote_dir: remote path on storage bucket relative to the configured remote base path.
-            e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
+            e.g. 'data/ground_truth'
         :param local_base_dir: Local base directory for constructing local path
-            e.g 'tfe_vida_data' yields a path
-            'tfe_vida_data/data/ground_truth/full_workflow' in the above example
+            e.g 'my/data/dir' yields a path
+            'my/data/dir/data/ground_truth' for the above example remote_dir
         :param overwrite_existing: Overwrite directory if exists locally
         :return: list of :class:`Object` instances referring to all downloaded files
         """
@@ -124,10 +122,9 @@ class RemoteStorage:
         """
         Pull either a file or a directory under the given path relative to local_base_dir. Files with the same name
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
-        TODO: Change example paths if extracting this method to library
 
         :param path: remote path on storage bucket relative to the configured remote base path.
-            e.g. 'data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson'
+            e.g. 'data/ground_truth/some_file.json'
         :param local_base_dir: Local base directory for constructing local path
             e.g 'tfe_vida_data' yields a path
             'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
@@ -151,44 +148,6 @@ class RemoteStorage:
                 local_base_dir=local_base_dir,
                 overwrite_existing=overwrite_existing,
             )
-
-    def push_directory(
-        self,
-        path: str,
-        local_path_prefix: Optional[str] = None,
-        overwrite_existing=True,
-    ) -> List[Object]:
-        """
-        Upload a directory from the given local path into the remote storage.
-
-        Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
-
-        :param path: Path to the local directory to be uploaded, may be absolute or relative
-        :param local_path_prefix: Optional prefix for the local path
-        :param overwrite_existing: If a remote object already exists, overwrite it?
-        :return: A list of :class:`Object` instances for all created objects
-        """
-        log.debug(f"push_object({path=}, {local_path_prefix=}, {overwrite_existing=}")
-        objects = []
-
-        local_path = self._get_push_local_path(path, local_path_prefix)
-        if not os.path.isdir(local_path):
-            raise FileNotFoundError(
-                f"Local path {local_path} does not refer to a directory"
-            )
-
-        for root, _, files in os.walk(local_path):
-            log.debug(f"Root directory: {root}")
-            log.debug(f"Files: {files}")
-
-            root_path = Path(root)
-            for file in files:
-                log.debug(f"Upload: {file=}, {root_path=}")
-                obj = self.push_file(
-                    file, root_path, overwrite_existing=overwrite_existing
-                )
-                objects.append(obj)
-        return objects
 
     @staticmethod
     def _get_push_local_path(path: str, local_path_prefix: Optional[str] = None) -> str:
@@ -234,6 +193,54 @@ class RemoteStorage:
         """
         return "/".join([self.remote_base_path, local_path]).replace("//", "/")
 
+    def push_directory(
+        self,
+        path: str,
+        local_path_prefix: Optional[str] = None,
+        overwrite_existing=True,
+    ) -> List[Object]:
+        """
+        Upload a directory from the given local path into the remote storage. The remote path to
+        which the directory is uploaded will be constructed from the remote_base_path and the provided path. The
+        local_path_prefix serves for finding the directory on the local system.
+
+        Examples:
+           1) path=foo/bar, local_path_prefix=None -->
+                ./foo/bar uploaded to remote_base_path/foo/bar
+           2) path=/home/foo/bar, local_path_prefix=None -->
+                /home/foo/bar uploaded to remote_base_path/home/foo/bar
+           3) path=bar, local_path_prefix=/home/foo -->
+                /home/foo/bar uploaded to remote_base_path/bar
+
+        Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
+
+        :param path: Path to the local directory to be uploaded, may be absolute or relative
+        :param local_path_prefix: Optional prefix for the local path
+        :param overwrite_existing: If a remote object already exists, overwrite it?
+        :return: A list of :class:`Object` instances for all created objects
+        """
+        log.debug(f"push_object({path=}, {local_path_prefix=}, {overwrite_existing=}")
+        objects = []
+
+        local_path = self._get_push_local_path(path, local_path_prefix)
+        if not os.path.isdir(local_path):
+            raise FileNotFoundError(
+                f"Local path {local_path} does not refer to a directory"
+            )
+
+        for root, _, files in os.walk(local_path):
+            log.debug(f"Root directory: {root}")
+            log.debug(f"Files: {files}")
+
+            root_path = Path(root)
+            for file in files:
+                log.debug(f"Upload: {file=}, {root_path=}")
+                obj = self.push_file(
+                    file, root_path, overwrite_existing=overwrite_existing
+                )
+                objects.append(obj)
+        return objects
+
     def push_file(
         self,
         path: str,
@@ -241,7 +248,17 @@ class RemoteStorage:
         overwrite_existing=True,
     ) -> Object:
         """
-        Upload a local file into the remote storage.
+        Upload a local file into the remote storage. The remote path to
+        which the file is uploaded will be constructed from the remote_base_path and the provided path. The
+        local_path_prefix serves for finding the file on the local system.
+
+        Examples:
+           1) path=foo/bar.json, local_path_prefix=None -->
+                ./foo/bar.json uploaded to remote_base_path/foo/bar.json
+           2) path=/home/foo/bar.json, local_path_prefix=None -->
+                /home/foo/bar.json uploaded to remote_base_path/home/foo/bar.json
+           3) path=bar.json, local_path_prefix=/home/foo -->
+                /home/foo/bar.json uploaded to remote_base_path/bar.json
 
         Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
 
@@ -283,18 +300,21 @@ class RemoteStorage:
         overwrite_existing=True,
     ) -> List[Object]:
         """
-        Upload a local file or directory into the remote storage.
+        Upload a local file or directory into the remote storage. The remote path for uploading
+        will be constructed from the remote_base_path and the provided path. The
+        local_path_prefix serves for finding the directory on the local system.
+
+        Examples:
+           1) path=foo/bar, local_path_prefix=None -->
+                ./foo/bar uploaded to remote_base_path/foo/bar
+           2) path=/home/foo/bar, local_path_prefix=None -->
+                /home/foo/bar uploaded to remote_base_path/home/foo/bar
+           3) path=bar, local_path_prefix=/home/foo -->
+                /home/foo/bar uploaded to remote_base_path/bar
 
         Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
 
         Remote objects will not be overwritten if their MD5sum matches the local file.
-
-        Usage examples::
-
-            push("/foo/bar/baz.txt") --> <remote_base_path>/foo/bar/baz.txt
-            push("foo/bar/baz.txt") --> <remote_base_path>/foo/bar/baz.txt
-            push("bar/baz.txt", local_base_dir="/foo") --> <remote_base_path>/bar/baz.txt
-            push("/absolute/path", local_base_dir="/something") --> ValueError
 
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
         :param local_path_prefix: Prefix to be concatenated with ``path``
