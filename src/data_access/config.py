@@ -1,23 +1,26 @@
 """
 Contains helpers for defining and providing configuration classes. A typical usage would be to create the files
-config.py, config.json and config_local.json in a project's root directory. An example of a config.py for a
+*config.py*, *config.json* and *config_local.json* in a project's root directory. An example of a config.py for a
 data-driven project is:
 
->>> from data_access.config import DefaultDataConfiguration, ConfigProviderBase
-...
->>> class __Configuration(DefaultDataConfiguration):
-...     @property
-...     def custom_entry(self):
-...         return "custom_entry"
-...
->>> class ConfigProvider(ConfigProviderBase[__Configuration]):
-...     pass
-...
->>> _config_provider = ConfigProvider()
-...
-...
->>> def get_config(reload=False):
-...     return _config_provider.get_config(reload=reload)
+.. code-block:: python
+
+  from data_access.config import DefaultDataConfiguration, ConfigProviderBase
+
+  class __Configuration(DefaultDataConfiguration):
+       @property
+       def custom_entry(self):
+           return "custom_entry"
+
+  class ConfigProvider(ConfigProviderBase[__Configuration]):
+       pass
+
+  _config_provider = ConfigProvider()
+
+
+  def get_config(reload=False):
+       return _config_provider.get_config(reload=reload)
+
 """
 
 
@@ -31,8 +34,6 @@ from pathlib import Path
 from typing import List, Union, Dict, TypeVar, Generic, Type, get_args
 
 log = logging.getLogger(__name__)
-
-__config_instance = None
 
 
 def recursive_dict_update(d: Dict, u: Dict):
@@ -146,17 +147,19 @@ class ConfigurationBase(ABC):
 class DefaultDataConfiguration(ConfigurationBase, ABC):
     """
     Reads default configuration entries and contains retrieval methods for a typical data-driven project.
-    A typical config.json file would look like this: \
-        { \
-            "data_raw": "data/raw", \
-            "data_cleaned": "data/cleaned", \
-            "data_processed": "data/processed", \
-            "data_ground_truth": "data/ground_truth", \
-            "visualizations": "data/visualizations", \
-            "artifacts": "data/artifacts", \
-            "temp": "temp", \
-            "data": "data" \
-        }
+    A typical config.json file would look like this:
+
+    | {
+    |    "data_raw": "data/raw",
+    |    "data_cleaned": "data/cleaned",
+    |    "data_processed": "data/processed",
+    |    "data_ground_truth": "data/ground_truth",
+    |    "visualizations": "data/visualizations",
+    |    "artifacts": "data/artifacts",
+    |    "temp": "temp",
+    |    "data": "data"
+    | }
+
     """
 
     PROCESSED = "processed"
