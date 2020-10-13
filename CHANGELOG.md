@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+### Improvements:
+- improvement of conversion module through documentation and unittests
+
+
 ## 0.1.1
 
 ### Features:
