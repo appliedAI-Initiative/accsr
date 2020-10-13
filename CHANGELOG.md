@@ -3,6 +3,7 @@
 ## 0.1.2
 
 ### Improvements:
+- extension of RemoteStorage, necessary e.g. for accessing private storage hosts
 - improvement of conversion module through documentation and unittests
 
 

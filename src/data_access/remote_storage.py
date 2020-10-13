@@ -1,8 +1,9 @@
 import logging.handlers
 import os
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Optional, List
-from dataclasses import dataclass
 
 import libcloud
 from libcloud.storage.base import StorageDriver, Container, Object
@@ -13,13 +14,21 @@ from data_access.files import md5sum
 log = logging.getLogger(__name__)
 
 
+class Provider(str, Enum):
+    GOOGLE_STORAGE = "google_storage"
+    S3 = "s3"
+
+
 @dataclass
 class RemoteStorageConfig:
+    provider: str
     key: str
     secret: str
     bucket: str
+    region: str = None
+    host: str = None
+    port: int = None
     base_path: str = ""
-    provider: str = "google_storage"
 
 
 class RemoteStorage:
@@ -45,7 +54,11 @@ class RemoteStorage:
                 libcloud.DriverType.STORAGE, self.conf.provider
             )
             driver: StorageDriver = storage_driver_factory(
-                key=self.conf.key, secret=self.conf.secret
+                key=self.conf.key,
+                secret=self.conf.secret,
+                region=self.conf.region,
+                host=self.conf.host,
+                port=self.conf.port,
             )
             self._bucket: Container = driver.get_container(self.conf.bucket)
         return self._bucket
