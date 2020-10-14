@@ -89,11 +89,11 @@ class RemoteStorage:
                 return
 
         remote_path = "/".join([self.remote_base_path, remote_path])
-        log.info(f"Fetching {remote_path} from {self.bucket.name}")
+        log.debug(f"Fetching {remote_path} from {self.bucket.name}")
         remote_object = self.bucket.get_object(remote_path)
         os.makedirs(os.path.dirname(download_path), exist_ok=True)
         remote_object.download(download_path, overwrite_existing=overwrite_existing)
-        log.info(f"Downloaded {remote_path} to {os.path.abspath(download_path)}")
+        log.debug(f"Downloaded {remote_path} to {os.path.abspath(download_path)}")
         return remote_object
 
     def pull_directory(
@@ -299,11 +299,13 @@ class RemoteStorage:
         if remote_obj:
             remote_obj = remote_obj[0]
             if md5sum(local_path) == remote_obj.hash:
-                log.debug(f"Files are identical, not uploading again")
+                log.info(f"Files are identical, not uploading again")
                 return remote_obj
 
         log.debug(f"Uploading: {local_path} --> {remote_path}")
-        remote_obj = self.bucket.upload_object(local_path, remote_path)
+        remote_obj = self.bucket.upload_object(
+            local_path, remote_path, verify_hash=False
+        )
         return remote_obj
 
     def push(
