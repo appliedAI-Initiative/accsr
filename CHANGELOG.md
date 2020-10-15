@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 Bugfix release
+
+### Bugfixes:
+- Fixed regression bug of RemoteStorage allowing for support of different providers
+- Fixed link resolution in docu and faulty default parameter in sql_access
+
 ## 0.1.2
 
 ### Improvements:
