@@ -1,7 +1,9 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import ContextManager
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
 
 
@@ -30,7 +32,7 @@ def get_session(db_config: DatabaseConfig) -> Session:
 # inspired by
 # https://docs.sqlalchemy.org/en/13/orm/session_basics.html#when-do-i-construct-a-session-when-do-i-commit-it-and-when-do-i-close-it
 @contextmanager
-def session_scope(db_config: DatabaseConfig = None):
+def session_scope(db_config: DatabaseConfig = None) -> ContextManager[Session]:
     """Provide a transactional scope around a series of operations"""
     session = get_session(db_config)
     try:
@@ -44,7 +46,7 @@ def session_scope(db_config: DatabaseConfig = None):
 
 
 @contextmanager
-def engine_scope(session):
+def engine_scope(session) -> ContextManager[Engine]:
     """Provide a transactional scope around a database engine"""
     engine = session.get_bind()
     yield engine
