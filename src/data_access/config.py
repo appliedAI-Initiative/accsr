@@ -76,7 +76,7 @@ class ConfigurationBase(ABC):
             if os.path.exists(file_path):
                 log.info("Reading configuration from %s" % file_path)
                 with open(file_path, "r") as f:
-                    self.config.update(json.load(f))
+                    recursive_dict_update(self.config, json.load(f))
         if not self.config:
             raise Exception(
                 "No configuration entries could be read from"
