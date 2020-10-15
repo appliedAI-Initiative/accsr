@@ -25,14 +25,14 @@ def get_engine(db_config: DatabaseConfig):
 
 
 def get_session(db_config: DatabaseConfig) -> Session:
-    engine = get_engine(db_config=db_config)
+    engine = get_engine(db_config)
     return sessionmaker(bind=engine)()
 
 
 # inspired by
 # https://docs.sqlalchemy.org/en/13/orm/session_basics.html#when-do-i-construct-a-session-when-do-i-commit-it-and-when-do-i-close-it
 @contextmanager
-def session_scope(db_config: DatabaseConfig = None) -> ContextManager[Session]:
+def session_scope(db_config: DatabaseConfig) -> ContextManager[Session]:
     """Provide a transactional scope around a series of operations"""
     session = get_session(db_config)
     try:
