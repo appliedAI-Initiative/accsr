@@ -41,7 +41,18 @@ class RemoteStorage:
     def __init__(self, conf: RemoteStorageConfig):
         self._bucket: Optional[Container] = None
         self.conf = conf
+        self.provider = conf.provider
         self.remote_base_path = conf.base_path
+        possible_driver_kwargs = {
+            "key": self.conf.key,
+            "secret": self.conf.secret,
+            "region": self.conf.region,
+            "host": self.conf.host,
+            "port": self.conf.port,
+        }
+        self.driver_kwargs = {
+            k: v for k, v in possible_driver_kwargs.items() if v is not None
+        }
 
     @property
     def bucket(self):
@@ -51,15 +62,9 @@ class RemoteStorage:
         if self._bucket is None:
             log.info(f"Establishing connection to bucket {self.conf.bucket}")
             storage_driver_factory = libcloud.get_driver(
-                libcloud.DriverType.STORAGE, self.conf.provider
+                libcloud.DriverType.STORAGE, self.provider
             )
-            driver: StorageDriver = storage_driver_factory(
-                key=self.conf.key,
-                secret=self.conf.secret,
-                region=self.conf.region,
-                host=self.conf.host,
-                port=self.conf.port,
-            )
+            driver: StorageDriver = storage_driver_factory(**self.driver_kwargs)
             self._bucket: Container = driver.get_container(self.conf.bucket)
         return self._bucket
 
