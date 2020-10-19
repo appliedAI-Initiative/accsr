@@ -1,6 +1,6 @@
 import logging.handlers
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Optional, List
@@ -23,8 +23,8 @@ class Provider(str, Enum):
 class RemoteStorageConfig:
     provider: str
     key: str
-    secret: str
     bucket: str
+    secret: str = field(repr=False)
     region: str = None
     host: str = None
     port: int = None
