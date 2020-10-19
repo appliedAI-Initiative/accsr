@@ -114,7 +114,10 @@ class ConfigurationBase(ABC):
         :return: the queried path
         """
         path_string = self._get_non_empty_entry(key)
-        path = os.path.abspath(path_string)
+        if os.path.isabs(path_string):
+            path = path_string
+        else:
+            path = os.path.abspath(os.path.join(self.config_directory, path_string))
         if not os.path.exists(path):
             if isinstance(key, list):
                 key = ".".join(key)  # purely for logging
@@ -289,5 +292,7 @@ class ConfigProviderBase(Generic[ConfigurationClass], ABC):
 
     def get_config(self, reload=False, *args, **kwargs) -> ConfigurationClass:
         if self._should_update_config_instance(reload, args, kwargs):
+            self._config_args = args
+            self._config_kwargs = kwargs
             self.__config_instance = self._config_constructor(*args, **kwargs)
         return self.__config_instance
