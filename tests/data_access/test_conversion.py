@@ -1,10 +1,7 @@
-from pytest import mark
 import numpy as np
+from pytest import mark
 
-from data_access.conversions import (
-    to_json_compatible_value,
-    to_json_compatible_dict,
-)
+from data_access.conversions import to_json_compatible_dict, to_json_compatible_value
 
 
 @mark.parametrize(

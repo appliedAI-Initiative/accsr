@@ -3,10 +3,10 @@ import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 import libcloud
-from libcloud.storage.base import StorageDriver, Container, Object
+from libcloud.storage.base import Container, Object, StorageDriver
 from libcloud.storage.types import ObjectDoesNotExistError
 
 from data_access.files import md5sum
