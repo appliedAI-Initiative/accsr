@@ -17,6 +17,6 @@ setup(
     install_requires=open("requirements.txt").readlines(),
     setup_requires=["wheel"],
     tests_require=test_requirements,
-    extras_require={"test": test_requirements, "docs": docs_requirements},
+    extras_require={"test": test_requirements, "docs": docs_requirements, "sql": ["SQLAlchemy>=1.3.18"]},
     author="AppliedAI",
 )
