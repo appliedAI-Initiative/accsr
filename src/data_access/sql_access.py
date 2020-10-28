@@ -6,11 +6,15 @@ try:
     from sqlalchemy import create_engine
     from sqlalchemy.engine import Engine
     from sqlalchemy.orm import sessionmaker, Session
+
     _sql_alchemy_installed = True
 except ImportError:
     import warnings
-    warnings.warn("Trying to import sql_access module but SQLAlchemy is not installed. "
-                  "Install with pip install data_access[sql]")
+
+    warnings.warn(
+        "Trying to import sql_access module but SQLAlchemy is not installed. "
+        "Install with pip install data_access[sql]"
+    )
     _sql_alchemy_installed = False
 
 
@@ -32,11 +36,9 @@ if _sql_alchemy_installed:
             echo=db_config.log_statements,
         )
 
-
     def get_session(db_config: DatabaseConfig) -> Session:
         engine = get_engine(db_config)
         return sessionmaker(bind=engine)()
-
 
     # inspired by
     # https://docs.sqlalchemy.org/en/13/orm/session_basics.html#when-do-i-construct-a-session-when-do-i-commit-it-and-when-do-i-close-it
@@ -52,7 +54,6 @@ if _sql_alchemy_installed:
             raise e
         finally:
             session.close()
-
 
     @contextmanager
     def engine_scope(session) -> ContextManager[Engine]:
