@@ -10,7 +10,6 @@ try:
     _sql_alchemy_installed = True
 except ImportError:
     import warnings
-
     warnings.warn(
         "Trying to import sql_access module but SQLAlchemy is not installed. "
         "Install with pip install data_access[sql]"

@@ -23,3 +23,9 @@ To live on the edge, install the latest develop version with
 ```shell script
 pip install --pre data-access
 ```
+
+The standard installation comes without the sql access utilities.
+If required, you can install them with
+```shell script
+pip install data-access[sql]
+```

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.7
+
+### Improvements
+- moved sql alchemy to extra requirements
+
+
 ## 0.1.3 Bugfix release
 
 ### Bugfixes:
