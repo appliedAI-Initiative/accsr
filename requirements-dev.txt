@@ -8,3 +8,4 @@ sphinx
 bump2version
 black
 pytest-lazy-fixture
+SQLAlchemy>=1.3.18
