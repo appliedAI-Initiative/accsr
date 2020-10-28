@@ -79,8 +79,8 @@ https://gitlab.aai.lab/%{project_path}/-/jobs/artifacts/develop/raw/badges/cover
 
 ### Development and Release Process
 
-In order to be able to automatically release new versions of the package from develop and master, you
-will have to set the following env variables in gitlab's CI/CD settings:
+In order to be able to automatically release new versions of the package from develop and master, the
+ CI pipeline should have access to the following variables (they should already be set on global level):
 
 ```
 PYPI_REPO_URL
@@ -90,7 +90,47 @@ PYPI_REPO_PASS
 
 They will be used in the release steps in the gitlab pipeline.
 
-A new release requires some manual work. Here is a description of the process:
+You will also need to set up Gitlab CI deploy keys for 
+automatically committing from the develop pipeline during version bumping
+
+
+#### Automatic release process
+
+In order to create an automatic release, a few prerequisites need to be satisfied:
+
+- The project's virtualenv needs to be active
+- The repository needs to be on the `develop` branch
+- The repository must be clean (including no untracked files)
+
+Then, a new release can be created using the `build_scripts/release-version.sh` script (leave off the version parameter
+to have `bumpversion` automatically derive the next release version):
+
+```shell script
+./build_scripts/release-version.sh 0.1.6
+```
+
+The script takes the following options:
+
+```
+Usage:
+  release-version.sh [FLAGS] VERSION_STR
+
+  Optional flags:
+    -d             Delete release branch after merging
+    -v, --verbose  Print debug information
+    -y, --yes      Do not prompt for confirmation, for non-interactive use
+
+  Positional options:
+    VERSION_STR   Version to release, e.g. v0.1.2.
+                  If not specified, 'bumpversion' is used to determine release version number.
+```
+
+If running in interactive mode (without `-y|--yes`), the script will output a summary of pending
+changes and ask for confirmation before executing the actions.
+
+#### Manual release process
+If the automatic release process doesn't cover your use case, you can also create a new release
+manually by following these steps:
 
 1. (repeat as needed) implement features on feature branches merged into `develop`. Each merge into develop will advance the `.devNNN` version suffix and publish the pre-release version into the package registry. These versions can be installed using `pip install --pre`.
 2. When ready to release: Create release branch `release/vX.Y.Z` off develop and perform release activities (update changelog, news, ...). Run `bumpversion --commit release` if the release is only a patch release, otherwise the full version can be specified using `bumpversion --commit --new-version X.Y.Z release` (the `release` part is ignored but required by bumpversion :rolling_eyes:).
