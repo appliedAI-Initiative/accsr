@@ -116,7 +116,9 @@ Usage:
   release-version.sh [FLAGS] VERSION_STR
 
   Optional flags:
+    -h, --help     Show this information and exit
     -d             Delete release branch after merging
+    -e             Edit changelog (using default editor)
     -v, --verbose  Print debug information
     -y, --yes      Do not prompt for confirmation, for non-interactive use
 
