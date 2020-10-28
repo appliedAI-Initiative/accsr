@@ -145,6 +145,7 @@ function _check_sanity() {
 function _confirm() {
   cat << EOF
 🔍 Summary of changes:
+    - Pull latest remote version of ${bold}develop${normal} (fast-forward only)
     - Create branch ${bold}$RELEASE_BRANCH${normal}
     - Bump version number: ${bold}$CURRENT_VERSION ⟶ $RELEASE_VERSION${normal}
 EOF
