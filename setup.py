@@ -6,6 +6,9 @@ docs_requirements = [
     "sphinxcontrib-websupport==1.2.0",
     "sphinx_rtd_theme",
 ]
+sql_requirements = [
+    "SQLAlchemy>=1.3.18"
+]
 
 setup(
     name="data_access",
@@ -20,7 +23,7 @@ setup(
     extras_require={
         "test": test_requirements,
         "docs": docs_requirements,
-        "sql": ["SQLAlchemy>=1.3.18"],
+        "sql": sql_requirements,
     },
     author="AppliedAI",
 )
