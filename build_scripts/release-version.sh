@@ -36,7 +36,7 @@ Usage:
     -d             Delete release branch after merging
     -e             Edit changelog (using default editor)
     -v, --verbose  Print debug information
-    -y, --yes      Do not prompt for confirmation, for non-interactive use
+    -y, --yes      Do not prompt for confirmation, for non-interactive use (incompatible with -e)
 
   Positional options:
     VERSION_STR   Version to release, e.g. v0.1.2.
@@ -111,6 +111,11 @@ function _check_sanity() {
   # Make sure bumpversion can be executed
   if [[ -z $(command -v bumpversion) ]]; then
     fail "bumpversion not found on the path. Is the right virtualenv active?"
+  fi
+
+  # Interactive mode and changelog edit are incompatible
+  if [[ -n "$EDIT_CHANGELOG" && -n "$FORCE_YES" ]]; then
+    fail "Non-interactive mode is incompatible with edit changelog flag."
   fi
 
   # Validate we are currently in a clean repo
