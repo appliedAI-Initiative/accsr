@@ -32,7 +32,9 @@ Usage:
   release-version.sh [FLAGS] VERSION_STR
 
   Optional flags:
+    -h, --help     Show this information and exit
     -d             Delete release branch after merging
+    -e             Edit changelog (using default editor)
     -v, --verbose  Print debug information
     -y, --yes      Do not prompt for confirmation, for non-interactive use
 
@@ -51,14 +53,24 @@ function _parse_opts() {
 
   DEBUG=
   DELETE_BRANCH=
+  EDIT_CHANGELOG=
   FORCE_YES=
+  HELP=
 
   while [[ $# -gt 0 ]]
   do
     key="$1"
     case $key in
+        -h|--help)
+          HELP=1
+          shift
+        ;;
         -v|--verbose)
           DEBUG=1
+          shift
+        ;;
+        -e)
+          EDIT_CHANGELOG=1
           shift
         ;;
         -y|--yes)
@@ -78,7 +90,13 @@ function _parse_opts() {
 
   export DEBUG
   export DELETE_BRANCH
+  export EDIT_CHANGELOG
   export FORCE_YES
+  export HELP
+
+  if [[ -n $HELP ]]; then
+    return
+  fi
 
   # Infer release version if none given
   if [[ -n "${POSITIONAL[*]}" ]]; then
@@ -124,6 +142,12 @@ function _confirm() {
 🔍 Summary of changes:
     - Create branch ${bold}$RELEASE_BRANCH${normal}
     - Bump version number: ${bold}$CURRENT_VERSION ⟶ $RELEASE_VERSION${normal}
+EOF
+    
+  if [[ -n "$EDIT_CHANGELOG" ]]; then
+    echo "    - Open CHANGELOG.md for editing"
+  fi
+  cat << EOF
     - Merge release branch into ${bold}master${normal}
     - Bump version number again to next development pre-release
     - Merge release branch into ${bold}develop${normal}
@@ -143,12 +167,18 @@ EOF
 }
 
 _parse_opts "$@"
+if [[ -n $HELP ]]; then
+  usage
+fi
+
 CURRENT_VERSION=$(bumpversion --dry-run --list patch | grep current_version | sed -r s,"^.*=",,)
 RELEASE_BRANCH="release/v$RELEASE_VERSION"
 RELEASE_TAG="v$RELEASE_VERSION"
 
 if [[ -n "$DEBUG" ]]; then
+  set -v
   echo "DEBUG:           ${DEBUG}"
+  echo "EDIT_CHANGELOG:  ${EDIT_CHANGELOG}"
   echo "FORCE_YES:       ${FORCE_YES}"
   echo "RELEASE_BRANCH:  ${RELEASE_BRANCH}"
   echo "RELEASE_TAG:     ${RELEASE_TAG}"
@@ -166,6 +196,28 @@ git pull --ff-only
 
 echo "📝 Creating release branch"
 git checkout -b "$RELEASE_BRANCH"
+
+if [[ -n "$EDIT_CHANGELOG" ]]; then
+  echo "⏳ Opening changelog for editing"
+  CHANGELOG_FILE=CHANGELOG.md
+  if [[ -n "${EDITOR-}" ]]; then
+    EDIT_CMD=$EDITOR
+  else
+    EDIT_CMD=/usr/bin/edit
+  fi
+  if [[ ! -x "$(which $EDIT_CMD)" ]]; then
+    fail "Editor command is not an executable file: ${bold}$EDIT_CMD${normal}"
+  fi
+
+  # Open editor and abort on non-zero exit code
+  if ! $EDIT_CMD $CHANGELOG_FILE; then
+    fail "Non-zero exit code from editor command, exiting."
+  fi
+
+  git add $CHANGELOG_FILE
+  git commit -m"Update Changelog for release"
+fi
+
 bumpversion --commit --new-version "$RELEASE_VERSION" release
 
 echo "🔨 Merging release branch into master"
