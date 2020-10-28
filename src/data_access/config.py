@@ -30,8 +30,7 @@ import logging.handlers
 import os
 from abc import ABC
 from pathlib import Path
-
-from typing import List, Union, Dict, TypeVar, Generic, Type, get_args
+from typing import Dict, Generic, List, Type, TypeVar, Union, get_args
 
 log = logging.getLogger(__name__)
 

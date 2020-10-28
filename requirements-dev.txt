@@ -8,3 +8,4 @@ sphinx
 bump2version
 black
 pytest-lazy-fixture
+pre-commit
