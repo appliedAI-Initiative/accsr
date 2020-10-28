@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ContextManager
 
 try:
@@ -18,8 +18,8 @@ class DatabaseConfig:
     host: str
     name: str
     user: str
-    pw: str
     port: str
+    pw: str = field(repr=False)
     log_statements: bool = False
 
 

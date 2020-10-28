@@ -1,6 +1,6 @@
-from typing import Union, Dict, Any
-
 from math import isinf, isnan
+from typing import Any, Dict, Union
+
 import numpy as np
 
 
