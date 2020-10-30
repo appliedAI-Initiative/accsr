@@ -1,7 +1,7 @@
 Data Access library
 =======
 
-This repository contains the data_access python library together with utilities for building, testing, 
+This repository contains the accsr python library together with utilities for building, testing, 
 documentation and configuration management. The library can be installed locally by running
 
 ```python setup.py install```
@@ -30,8 +30,8 @@ detect mistakes early on.
 
 We strongly suggest to use some form of virtual environment for working with the library. E.g. with conda:
 ```shell script
-conda create -n data_access python=3.8
-conda activate data_access
+conda create -n accsr python=3.8
+conda activate accsr
 pip install -r requirements.txt -r requirements-dev.txt
 ```
 

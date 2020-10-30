@@ -5,7 +5,7 @@ data-driven project is:
 
 .. code-block:: python
 
-  from data_access.config import DefaultDataConfiguration, ConfigProviderBase
+  from accsr.config import DefaultDataConfiguration, ConfigProviderBase
 
   class __Configuration(DefaultDataConfiguration):
        @property
@@ -259,7 +259,7 @@ class ConfigProviderBase(Generic[ConfigurationClass], ABC):
     appropriate subclass of ConfigurationBase substituting the generic type.
 
     Usage example:
-        >>> from data_access.config import ConfigurationBase, ConfigProviderBase
+        >>> from accsr.config import ConfigurationBase, ConfigProviderBase
         >>> class __MyConfigClass(ConfigurationBase):
         ...     pass
         >>> class __MyConfigProvider(ConfigProviderBase[__MyConfigClass]):

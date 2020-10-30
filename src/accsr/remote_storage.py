@@ -9,7 +9,7 @@ import libcloud
 from libcloud.storage.base import Container, Object, StorageDriver
 from libcloud.storage.types import ObjectDoesNotExistError
 
-from data_access.files import md5sum
+from accsr.files import md5sum
 
 log = logging.getLogger(__name__)
 

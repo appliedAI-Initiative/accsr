@@ -9,7 +9,7 @@ def to_json_compatible_value(value):
     Cast a numerical value to be compatible with json serialization.
 
     >>> import numpy
-    >>> from data_access.conversions import to_json_compatible_value
+    >>> from accsr.conversions import to_json_compatible_value
     >>> to_json_compatible_value(numpy.array([1, 2, 3]))
     [1, 2, 3]
     >>> to_json_compatible_value(numpy.array([[1], [2], [3]]))
@@ -41,7 +41,7 @@ def to_json_compatible_dict(
     Calls the to_json_compatible_value function for each dict entry.
     Does not support nested dicts.
 
-    >>> from data_access.conversions import to_json_compatible_dict
+    >>> from accsr.conversions import to_json_compatible_dict
     >>> import numpy
     >>> to_json_compatible_dict({'a': numpy.int32(1), 'b': numpy.array([1, 2])})
     {'a': 1, 'b': [1, 2]}
