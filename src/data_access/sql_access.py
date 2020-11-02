@@ -5,7 +5,7 @@ from typing import ContextManager
 try:
     from sqlalchemy import create_engine
     from sqlalchemy.engine import Engine
-    from sqlalchemy.orm import sessionmaker, Session
+    from sqlalchemy.orm import Session, sessionmaker
 except ImportError:
     raise ImportError(
         "Trying to import sql_access module but SQLAlchemy is not installed. "
