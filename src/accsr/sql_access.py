@@ -2,9 +2,15 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import ContextManager
 
-from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker
+try:
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.orm import Session, sessionmaker
+except ImportError:
+    raise ImportError(
+        "Trying to import sql_access module but SQLAlchemy is not installed. "
+        "Install with pip install data_access[sql]"
+    )
 
 
 @dataclass
@@ -17,7 +23,7 @@ class DatabaseConfig:
     log_statements: bool = False
 
 
-def get_engine(db_config: DatabaseConfig):
+def get_engine(db_config: DatabaseConfig) -> Engine:
     return create_engine(
         f"postgresql://{db_config.user}:{db_config.pw}@{db_config.host}:{db_config.port}/{db_config.name}",
         echo=db_config.log_statements,
