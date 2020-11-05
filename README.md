@@ -16,16 +16,16 @@ Source code documentation and usage examples are [here](http://resources.pages.a
 The library is published to our [package registry](https://nexus.admin.aai.sh/#browse/browse:aai-pypi). Install
 it from there with
 ```shell script
-pip install data-access
+pip install accsr
 ```
 
 To live on the edge, install the latest develop version with
 ```shell script
-pip install --pre data-access
+pip install --pre accsr
 ```
 
 The standard installation comes without the sql access utilities.
 If required, you can install them with
 ```shell script
-pip install data-access[sql]
+pip install accsr[sql]
 ```
