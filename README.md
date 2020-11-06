@@ -5,7 +5,7 @@ configurations. Its purpose is to be used across many different projects at appl
 if we ever open source it). 
 
 Please open new issues for bugs, feature requests and extensions. See more details about the structure and
-workflow in the [developer's readme](README_dev.md).
+workflow in the [developer's readme](README_dev.md). 
 
 ## Overview
 
