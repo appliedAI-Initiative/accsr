@@ -1,6 +1,6 @@
 config
 ======
 
-.. automodule:: data_access.config
+.. automodule:: accsr.config
    :members:
    :undoc-members:

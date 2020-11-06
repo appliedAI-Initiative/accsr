@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from data_access.loading import open_file_in_tar
+from accsr.loading import open_file_in_tar
 
 SAMPLE_TAR = "sample.tar"
 SAMPLE_TXT = "sample.txt"

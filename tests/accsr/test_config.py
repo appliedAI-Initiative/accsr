@@ -1,5 +1,5 @@
-from data_access.remote_storage import RemoteStorageConfig
-from data_access.sql_access import DatabaseConfig
+from accsr.remote_storage import RemoteStorageConfig
+from accsr.sql_access import DatabaseConfig
 
 
 def test_db_config_repr_does_not_include_pw():

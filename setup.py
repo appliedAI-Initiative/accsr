@@ -9,12 +9,12 @@ docs_requirements = [
 sql_requirements = ["SQLAlchemy>=1.3.18"]
 
 setup(
-    name="data_access",
+    name="accsr",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     include_package_data=True,
     version="0.1.7-dev8",
-    description="Library for data_access",
+    description="Utils for accessing data from anywhere",
     install_requires=open("requirements.txt").readlines(),
     setup_requires=["wheel"],
     tests_require=test_requirements,

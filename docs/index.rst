@@ -1,4 +1,4 @@
-data_access
+accsr
 ==============================
 
 .. toctree::
@@ -11,7 +11,7 @@ data_access
 .. toctree::
    :caption: Modules
 
-   data_access/index
+   accsr/index
 
 
 
