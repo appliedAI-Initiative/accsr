@@ -1,5 +1,5 @@
-Data Access library
-=======
+accsr library
+=============
 
 This repository contains the accsr python library together with utilities for building, testing, 
 documentation and configuration management. The library can be installed locally by running

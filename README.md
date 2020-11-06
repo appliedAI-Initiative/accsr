@@ -1,4 +1,4 @@
-# AppliedAI Data Access Library
+# AppliedAI accsr Library
 
 This lightweight library contains utilities for managing, loading, uploading, opening and generally wrangling data and
 configurations. Its purpose is to be used across many different projects at appliedAI (and possibly somewhere else,
@@ -9,7 +9,7 @@ workflow in the [developer's readme](README_dev.md).
 
 ## Overview
 
-Source code documentation and usage examples are [here](http://resources.pages.aai.lab/data-access/docs/)
+Source code documentation and usage examples are [here](http://resources.pages.aai.lab/accsr/docs/)
 
 ## Installation
 
