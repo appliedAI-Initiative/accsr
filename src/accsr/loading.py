@@ -1,11 +1,12 @@
 import logging
 import os
+import re
 import tarfile
 import urllib.request
 from contextlib import contextmanager
 from io import BufferedReader
 from os import PathLike
-from typing import Union
+from typing import Optional, Union
 
 from tqdm import tqdm
 
@@ -48,34 +49,29 @@ def download_file(
 
 @contextmanager
 def open_file_in_tar(
-    path: str, file_name: str = None, file_index: int = None
+    path: Union[str, PathLike], file_regex: Union[str, re.Pattern] = ".*"
 ) -> BufferedReader:
     """
-    Opens an archived file in memory without extracting it on disc. Use as context manager
+    Opens an archived file in memory without extracting it on disc. Use as context manager:
     >>> with open_file_in_tar(...) as fh: pass
 
-    :param path:
-    :param file_name:
-    :param file_index: 1-based index of the file to retrieve
-    :return:
+    :param path: Local file path to the tar archive.
+    :param file_regex: A regular expression which will be matched against the files in the archive.
+      The matching file will be returned.
+
+    :raises `ValueError`: when the `file_regex` matches multiple or no file in the archive.
     """
-    if file_name is not None and file_index is not None:
-        raise ValueError("Either file_name or file_index should be passed; not both")
-    if file_name is None and file_index is None:
-        raise ValueError("One of file_name or file_index has to be passed")
+    if isinstance(file_regex, str):
+        file_regex = re.compile(file_regex)
 
     with tarfile.open(path) as tar:
-        archived_files = tar.getnames()
-        if file_index is not None:
-            if file_index < 1:
-                raise IndexError(
-                    f"Invalid index {file_index}. NOTE: the parameter file_index is 1 based"
-                )
-            file_name = archived_files[file_index - 1]  # tar uses 1-based indices
-        # tar.extractfile returns None for non-existing files, so we have to raise the Exception ourselves
-        elif file_name not in archived_files:
-            raise FileNotFoundError(f"No such file in {path}: {file_name}")
+        file_names = tar.getnames()
+        matches = list(filter(file_regex.match, file_names))
+        if len(matches) != 1:
+            raise ValueError(
+                f"Regular expression {file_regex.pattern} matched against zero or multiple files {matches}"
+            )
+        file_name = matches[0]
         log.debug(f"Yielding {file_name} from {path}")
-
         with tar.extractfile(file_name) as file:
             yield file
