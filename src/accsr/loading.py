@@ -6,7 +6,7 @@ import urllib.request
 from contextlib import contextmanager
 from io import BufferedReader
 from os import PathLike
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
 from tqdm import tqdm
 
@@ -18,6 +18,7 @@ def download_file(
     output_file: Union[str, PathLike],
     show_progress=False,
     overwrite_existing=False,
+    headers: Optional[Dict[str, str]] = None,
 ):
     """
     Download a file via HTTP[S] to a specified directory
@@ -26,7 +27,7 @@ def download_file(
     :param output_file: Destination path for the downloaded file
     :param show_progress: show a progress bar using :mod:`tqdm`
     :param overwrite_existing: whether to overwrite existing files
-    :return:
+    :param headers: Optional headers to add to request, e.g. {"Authorization": "Bearer <access_token>" }
     """
     if os.path.exists(output_file):
         if overwrite_existing:
@@ -35,6 +36,11 @@ def download_file(
             raise FileExistsError(f"{output_file} exists, skipping download")
 
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    if headers:
+        headers_list = [(k, v) for k, v in headers.items()]
+        opener = urllib.request.build_opener()
+        opener.addheaders = headers_list
+        urllib.request.install_opener(opener)
     if show_progress:
         with tqdm(desc=output_file, unit="B", unit_scale=True) as progress:
 
