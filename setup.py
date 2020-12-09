@@ -13,7 +13,7 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     include_package_data=True,
-    version="0.1.8-dev1",
+    version="0.1.8-dev2",
     description="Utils for accessing data from anywhere",
     install_requires=open("requirements.txt").readlines(),
     setup_requires=["wheel"],
