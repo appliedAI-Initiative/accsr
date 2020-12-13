@@ -144,8 +144,8 @@ class RemoteStorage:
         :param path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/some_file.json'
         :param local_base_dir: Local base directory for constructing local path
-            e.g 'tfe_vida_data' yields a path
-            'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
+            e.g 'my/data/dir' yields a path
+            'my/data/dir/data/ground_truth/some_file.json' in the above example
         :param overwrite_existing: Overwrite file if exists locally
         :return: list of :class:`Object` instances referring to all downloaded files
         """
