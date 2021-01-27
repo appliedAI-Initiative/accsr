@@ -206,6 +206,7 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
+        file_pattern: str = None,
     ) -> List[Object]:
         """
         Upload a directory from the given local path into the remote storage. The remote path to
@@ -225,6 +226,7 @@ class RemoteStorage:
         :param path: Path to the local directory to be uploaded, may be absolute or relative
         :param local_path_prefix: Optional prefix for the local path
         :param overwrite_existing: If a remote object already exists, overwrite it?
+        :param file_pattern: Use a regular expression to match the filename.
         :return: A list of :class:`Object` instances for all created objects
         """
         log.debug(f"push_object({path=}, {local_path_prefix=}, {overwrite_existing=}")
@@ -242,6 +244,14 @@ class RemoteStorage:
 
             root_path = Path(root)
             for file in files:
+                if file_pattern is not None:
+                    rel_file_path = os.path.basename(file)
+                    if not re.match(file_pattern, rel_file_path):
+                        log.info(
+                            f"Skipping {rel_file_path} due to regex {file_pattern}"
+                        )
+                        continue
+
                 log.debug(f"Upload: {file=}, {root_path=}")
                 obj = self.push_file(
                     file, root_path, overwrite_existing=overwrite_existing
@@ -308,6 +318,7 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
+        file_pattern: str = None,
     ) -> List[Object]:
         """
         Upload a local file or directory into the remote storage. The remote path for uploading
@@ -329,13 +340,16 @@ class RemoteStorage:
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param overwrite_existing: If a remote object already exists, overwrite it?
+        :param file_pattern: Use a regular expression to match the filename.
         :return:
         """
         local_path = self._get_push_local_path(path, local_path_prefix)
         if os.path.isfile(local_path):
             return [self.push_file(path, local_path_prefix, overwrite_existing)]
         elif os.path.isdir(local_path):
-            return self.push_directory(path, local_path_prefix, overwrite_existing)
+            return self.push_directory(
+                path, local_path_prefix, overwrite_existing, file_pattern
+            )
         else:
             raise FileNotFoundError(
                 f"Local path {local_path} does not refer to a file or directory"
