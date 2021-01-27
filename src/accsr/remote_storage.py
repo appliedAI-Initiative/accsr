@@ -1,5 +1,6 @@
 import logging.handlers
 import os
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -101,7 +102,13 @@ class RemoteStorage:
         log.debug(f"Downloaded {remote_path} to {os.path.abspath(download_path)}")
         return remote_object
 
-    def pull(self, path: str, local_base_dir=None, overwrite_existing=False):
+    def pull(
+        self,
+        path: str,
+        local_base_dir=None,
+        overwrite_existing=False,
+        file_pattern: str = None,
+    ):
         """
         Pull either a file or a directory under the given path relative to local_base_dir. Files with the same name
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
@@ -112,6 +119,7 @@ class RemoteStorage:
             e.g 'tfe_vida_data' yields a path
             'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
         :param overwrite_existing: Overwrite file if exists locally
+        :param file_pattern: Use a regular expression to match the filename.
         :return: list of :class:`Object` instances referring to all downloaded files
         """
         remote_path_prefix_len = len(self.remote_base_path) + 1
@@ -123,6 +131,10 @@ class RemoteStorage:
             )
             return []
         downloaded_objects = []
+        use_regexp = file_pattern is not None
+        if use_regexp:
+            compiled_regexp_file_pattern = re.compile(file_pattern)
+
         for remote_obj in remote_objects:
             # Due to a possible bug in libcloud or storage providers, directories may be listed here.
             # We filter them out by checking for size
@@ -130,14 +142,24 @@ class RemoteStorage:
                 log.info(f"Skipping download of {remote_obj.name} with size zero.")
                 continue
             # removing the remote prefix from the full path
-            path = remote_obj.name[remote_path_prefix_len:]
-            downloaded_object = self.pull_file(
-                path,
-                local_base_dir=local_base_dir,
-                overwrite_existing=overwrite_existing,
-            )
-            if downloaded_object is not None:
-                downloaded_objects.append(downloaded_object)
+            remote_obj_path = remote_obj.name[remote_path_prefix_len:]
+            file_should_be_downloaded = True
+            if use_regexp:
+                match = compiled_regexp_file_pattern.match(
+                    os.path.relpath(remote_obj_path, path)
+                )
+                if not match:
+                    file_should_be_downloaded = False
+
+            if file_should_be_downloaded:
+                downloaded_object = self.pull_file(
+                    remote_obj_path,
+                    local_base_dir=local_base_dir,
+                    overwrite_existing=overwrite_existing,
+                )
+                if downloaded_object is not None:
+                    downloaded_objects.append(downloaded_object)
+
         return downloaded_objects
 
     @staticmethod
