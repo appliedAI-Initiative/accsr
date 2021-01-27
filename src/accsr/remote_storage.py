@@ -146,7 +146,7 @@ class RemoteStorage:
             file_should_be_downloaded = True
             if use_regexp:
                 match = compiled_regexp_file_pattern.match(
-                    os.path.relpath(remote_obj_path, path)
+                    os.path.basename(remote_obj_path)
                 )
                 if not match:
                     file_should_be_downloaded = False
