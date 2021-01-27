@@ -131,9 +131,6 @@ class RemoteStorage:
             )
             return []
         downloaded_objects = []
-        use_regexp = file_pattern is not None
-        if use_regexp:
-            compiled_regexp_file_pattern = re.compile(file_pattern)
 
         for remote_obj in remote_objects:
             # Due to a possible bug in libcloud or storage providers, directories may be listed here.
@@ -141,24 +138,22 @@ class RemoteStorage:
             if remote_obj.size == 0:
                 log.info(f"Skipping download of {remote_obj.name} with size zero.")
                 continue
+
             # removing the remote prefix from the full path
             remote_obj_path = remote_obj.name[remote_path_prefix_len:]
-            file_should_be_downloaded = True
-            if use_regexp:
-                match = compiled_regexp_file_pattern.match(
-                    os.path.basename(remote_obj_path)
-                )
-                if not match:
-                    file_should_be_downloaded = False
+            if file_pattern is not None:
+                rel_file_path = os.path.basename(remote_obj_path)
+                if not re.match(file_pattern, rel_file_path):
+                    log.info(f"Skipping {rel_file_path} due to regex {file_pattern}")
+                    continue
 
-            if file_should_be_downloaded:
-                downloaded_object = self.pull_file(
-                    remote_obj_path,
-                    local_base_dir=local_base_dir,
-                    overwrite_existing=overwrite_existing,
-                )
-                if downloaded_object is not None:
-                    downloaded_objects.append(downloaded_object)
+            downloaded_object = self.pull_file(
+                remote_obj_path,
+                local_base_dir=local_base_dir,
+                overwrite_existing=overwrite_existing,
+            )
+            if downloaded_object is not None:
+                downloaded_objects.append(downloaded_object)
 
         return downloaded_objects
 
