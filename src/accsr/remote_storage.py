@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Pattern
 
 import libcloud
 from libcloud.storage.base import Container, Object, StorageDriver
@@ -107,7 +107,7 @@ class RemoteStorage:
         path: str,
         local_base_dir=None,
         overwrite_existing=False,
-        rel_file_path_pattern: str = None,
+        path_regex: Pattern = None,
     ):
         """
         Pull either a file or a directory under the given path relative to local_base_dir. Files with the same name
@@ -119,7 +119,7 @@ class RemoteStorage:
             e.g 'local_base_dir' yields a path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
         :param overwrite_existing: Overwrite file if exists locally
-        :param rel_file_path_pattern: Use a regular expression to match the path file path relative to the local path
+        :param path_regex: If not None only files with paths matching the regex will be pulled.
         :return: list of :class:`Object` instances referring to all downloaded files
         """
         remote_path_prefix_len = len(self.remote_base_path) + 1
@@ -141,12 +141,9 @@ class RemoteStorage:
 
             # removing the remote prefix from the full path
             remote_obj_path = remote_obj.name[remote_path_prefix_len:]
-            if rel_file_path_pattern is not None:
-                rel_file_path = os.path.relpath(remote_obj_path, path)
-                if not re.match(rel_file_path_pattern, rel_file_path):
-                    log.info(
-                        f"Skipping {rel_file_path} due to regex {rel_file_path_pattern}"
-                    )
+            if path_regex is not None:
+                if not re.match(path_regex, remote_obj_path):
+                    log.info(f"Skipping {remote_obj_path} due to regex {path_regex}")
                     continue
 
             downloaded_object = self.pull_file(
@@ -208,7 +205,7 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
-        rel_file_path_pattern: str = None,
+        path_regex: Pattern = None,
     ) -> List[Object]:
         """
         Upload a directory from the given local path into the remote storage. The remote path to
@@ -228,7 +225,7 @@ class RemoteStorage:
         :param path: Path to the local directory to be uploaded, may be absolute or relative
         :param local_path_prefix: Optional prefix for the local path
         :param overwrite_existing: If a remote object already exists, overwrite it?
-        :param rel_file_path_pattern: Use a regular expression to match the path file path relative to the local path.
+        :param path_regex: If not None only files with paths matching the regex will be pushed.
         :return: A list of :class:`Object` instances for all created objects
         """
         log.debug(f"push_object({path=}, {local_path_prefix=}, {overwrite_existing=}")
@@ -243,15 +240,15 @@ class RemoteStorage:
         for root, _, files in os.walk(local_path):
             log.debug(f"Root directory: {root}")
             log.debug(f"Files: {files}")
+            rel_root_path = os.path.relpath(local_path, root)
 
             root_path = Path(root)
             for file in files:
-                if rel_file_path_pattern is not None:
-                    full_path = os.path.join(root, file)
-                    rel_file_path = os.path.relpath(local_path, full_path)
-                    if not re.match(rel_file_path_pattern, rel_file_path):
+                if path_regex is not None:
+                    remote_obj_path = os.path.join(rel_root_path, file)
+                    if not re.match(path_regex, remote_obj_path):
                         log.info(
-                            f"Skipping {rel_file_path} due to regex {rel_file_path_pattern}"
+                            f"Skipping {remote_obj_path} due to regex {path_regex}"
                         )
                         continue
 
@@ -321,7 +318,7 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
-        file_pattern: str = None,
+        path_regex: Pattern = None,
     ) -> List[Object]:
         """
         Upload a local file or directory into the remote storage. The remote path for uploading
@@ -343,7 +340,7 @@ class RemoteStorage:
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param overwrite_existing: If a remote object already exists, overwrite it?
-        :param file_pattern: Use a regular expression to match the filename.
+        :param path_regex: If not None only files with paths matching the regex will be pushed. Gets used if path/local_path_prefix is a directory.
         :return:
         """
         local_path = self._get_push_local_path(path, local_path_prefix)
@@ -351,7 +348,7 @@ class RemoteStorage:
             return [self.push_file(path, local_path_prefix, overwrite_existing)]
         elif os.path.isdir(local_path):
             return self.push_directory(
-                path, local_path_prefix, overwrite_existing, file_pattern
+                path, local_path_prefix, overwrite_existing, path_regex
             )
         else:
             raise FileNotFoundError(
