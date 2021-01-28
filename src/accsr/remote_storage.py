@@ -142,7 +142,7 @@ class RemoteStorage:
             # removing the remote prefix from the full path
             remote_obj_path = remote_obj.name[remote_path_prefix_len:]
             if path_regex is not None:
-                if not re.match(path_regex, remote_obj_path):
+                if not path_regex.match(remote_obj_path):
                     log.info(f"Skipping {remote_obj_path} due to regex {path_regex}")
                     continue
 
@@ -246,7 +246,7 @@ class RemoteStorage:
             for file in files:
                 if path_regex is not None:
                     remote_obj_path = os.path.join(rel_root_path, file)
-                    if not re.match(path_regex, remote_obj_path):
+                    if not path_regex.match(remote_obj_path):
                         log.info(
                             f"Skipping {remote_obj_path} due to regex {path_regex}"
                         )
