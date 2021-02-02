@@ -1,9 +1,10 @@
 import logging.handlers
 import os
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Pattern, Union
 
 import libcloud
 from libcloud.storage.base import Container, Object, StorageDriver
@@ -101,7 +102,13 @@ class RemoteStorage:
         log.debug(f"Downloaded {remote_path} to {os.path.abspath(download_path)}")
         return remote_object
 
-    def pull(self, path: str, local_base_dir=None, overwrite_existing=False):
+    def pull(
+        self,
+        path: str,
+        local_base_dir=None,
+        overwrite_existing=False,
+        path_regex: Pattern = None,
+    ):
         """
         Pull either a file or a directory under the given path relative to local_base_dir. Files with the same name
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
@@ -109,9 +116,10 @@ class RemoteStorage:
         :param path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/some_file.json'
         :param local_base_dir: Local base directory for constructing local path
-            e.g 'tfe_vida_data' yields a path
-            'tfe_vida_data/data/ground_truth/full_workflow/nigeria-aoi1-labels.geojson' in the above example
+            e.g 'local_base_dir' yields a path
+            'local_base_dir/data/ground_truth/some_file.json' in the above example
         :param overwrite_existing: Overwrite file if exists locally
+        :param path_regex: If not None only files with paths matching the regex will be pulled.
         :return: list of :class:`Object` instances referring to all downloaded files
         """
         remote_path_prefix_len = len(self.remote_base_path) + 1
@@ -122,6 +130,7 @@ class RemoteStorage:
                 f"No such remote file or directory: {remote_path}. Not pulling anything"
             )
             return []
+
         downloaded_objects = []
         for remote_obj in remote_objects:
             # Due to a possible bug in libcloud or storage providers, directories may be listed here.
@@ -129,15 +138,22 @@ class RemoteStorage:
             if remote_obj.size == 0:
                 log.info(f"Skipping download of {remote_obj.name} with size zero.")
                 continue
+
             # removing the remote prefix from the full path
-            path = remote_obj.name[remote_path_prefix_len:]
+            remote_obj_path = remote_obj.name[remote_path_prefix_len:]
+            if path_regex is not None:
+                if not path_regex.match(remote_obj_path):
+                    log.info(f"Skipping {remote_obj_path} due to regex {path_regex}")
+                    continue
+
             downloaded_object = self.pull_file(
-                path,
+                remote_obj_path,
                 local_base_dir=local_base_dir,
                 overwrite_existing=overwrite_existing,
             )
             if downloaded_object is not None:
                 downloaded_objects.append(downloaded_object)
+
         return downloaded_objects
 
     @staticmethod
@@ -189,6 +205,7 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
+        path_regex: Pattern = None,
     ) -> List[Object]:
         """
         Upload a directory from the given local path into the remote storage. The remote path to
@@ -208,6 +225,7 @@ class RemoteStorage:
         :param path: Path to the local directory to be uploaded, may be absolute or relative
         :param local_path_prefix: Optional prefix for the local path
         :param overwrite_existing: If a remote object already exists, overwrite it?
+        :param path_regex: If not None only files with paths matching the regex will be pushed.
         :return: A list of :class:`Object` instances for all created objects
         """
         log.debug(f"push_object({path=}, {local_path_prefix=}, {overwrite_existing=}")
@@ -222,9 +240,18 @@ class RemoteStorage:
         for root, _, files in os.walk(local_path):
             log.debug(f"Root directory: {root}")
             log.debug(f"Files: {files}")
+            rel_root_path = os.path.relpath(local_path, root)
 
             root_path = Path(root)
             for file in files:
+                if path_regex is not None:
+                    remote_obj_path = os.path.join(rel_root_path, file)
+                    if not path_regex.match(remote_obj_path):
+                        log.info(
+                            f"Skipping {remote_obj_path} due to regex {path_regex}"
+                        )
+                        continue
+
                 log.debug(f"Upload: {file=}, {root_path=}")
                 obj = self.push_file(
                     file, root_path, overwrite_existing=overwrite_existing
@@ -291,6 +318,7 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
+        path_regex: Pattern = None,
     ) -> List[Object]:
         """
         Upload a local file or directory into the remote storage. The remote path for uploading
@@ -312,13 +340,24 @@ class RemoteStorage:
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param overwrite_existing: If a remote object already exists, overwrite it?
-        :return:
+        :param path_regex: If not None only files with paths matching the regex will be pushed. Gets used if path/local_path_prefix is a directory.
+        :return: A list of remote objects, describing which files where matched and pushed.
         """
         local_path = self._get_push_local_path(path, local_path_prefix)
         if os.path.isfile(local_path):
+
+            if path_regex is not None and not path_regex.match(path):
+                log.warning(
+                    f"{path} does not match regular expression '{path_regex}'. Nothing is pushed."
+                )
+                return []
+
             return [self.push_file(path, local_path_prefix, overwrite_existing)]
+
         elif os.path.isdir(local_path):
-            return self.push_directory(path, local_path_prefix, overwrite_existing)
+            return self.push_directory(
+                path, local_path_prefix, overwrite_existing, path_regex=path_regex
+            )
         else:
             raise FileNotFoundError(
                 f"Local path {local_path} does not refer to a file or directory"
