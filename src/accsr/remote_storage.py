@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Pattern
+from typing import List, Optional, Pattern, Union
 
 import libcloud
 from libcloud.storage.base import Container, Object, StorageDriver
@@ -264,7 +264,6 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
-        path_regex: Pattern = None,
     ) -> Object:
         """
         Upload a local file into the remote storage. The remote path to
@@ -284,7 +283,6 @@ class RemoteStorage:
         :param path: Path to the local file to be uploaded, must not be absolute if ``local_path_prefix`` is specified
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param overwrite_existing: If the remote object already exists, overwrite it?
-        :param path_regex: If not None, and file does not match regular expression None is returned.
         :return: A :class:`Object` instance referring to the created object
         """
         log.debug(
@@ -301,12 +299,6 @@ class RemoteStorage:
             raise RuntimeError(
                 f"Remote object {remote_path} already exists and overwrite_existing=False"
             )
-
-        if path_regex is not None and not path_regex.match(path):
-            log.warning(
-                f"{path} does not match regular expression '{path_regex}'. Nothing is pushed."
-            )
-            return None
 
         # Skip upload if MD5 hashes match
         if remote_obj:
@@ -327,7 +319,7 @@ class RemoteStorage:
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
         path_regex: Pattern = None,
-    ) -> List[Object]:
+    ) -> List[Union[Object, None]]:
         """
         Upload a local file or directory into the remote storage. The remote path for uploading
         will be constructed from the remote_base_path and the provided path. The
@@ -349,15 +341,19 @@ class RemoteStorage:
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param overwrite_existing: If a remote object already exists, overwrite it?
         :param path_regex: If not None only files with paths matching the regex will be pushed. Gets used if path/local_path_prefix is a directory.
-        :return:
+        :return: A list of remote objects or None, describing which files where matched.
         """
         local_path = self._get_push_local_path(path, local_path_prefix)
         if os.path.isfile(local_path):
-            return [
-                self.push_file(
-                    path, local_path_prefix, overwrite_existing, path_regex=path_regex
+
+            if path_regex is not None and not path_regex.match(path):
+                log.warning(
+                    f"{path} does not match regular expression '{path_regex}'. Nothing is pushed."
                 )
-            ]
+                return [None]
+
+            return [self.push_file(path, local_path_prefix, overwrite_existing)]
+
         elif os.path.isdir(local_path):
             return self.push_directory(
                 path, local_path_prefix, overwrite_existing, path_regex=path_regex
