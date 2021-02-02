@@ -119,7 +119,7 @@ class RemoteStorage:
             e.g 'local_base_dir' yields a path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
         :param overwrite_existing: Overwrite file if exists locally
-        :param path_regex: If not None only files with paths matching the regex will be pulled.
+        :param path_regex: If not None only files with paths matching the regex will be pulled. If path points to a file an AttributeError is thrown.
         :return: list of :class:`Object` instances referring to all downloaded files
         """
         remote_path_prefix_len = len(self.remote_base_path) + 1
@@ -130,8 +130,12 @@ class RemoteStorage:
                 f"No such remote file or directory: {remote_path}. Not pulling anything"
             )
             return []
-        downloaded_objects = []
+        if len(remote_objects) == 1 and path_regex is not None:
+            raise AttributeError(
+                f"You have to either choose a directory for '{path}' or don't use a regexp at all."
+            )
 
+        downloaded_objects = []
         for remote_obj in remote_objects:
             # Due to a possible bug in libcloud or storage providers, directories may be listed here.
             # We filter them out by checking for size
