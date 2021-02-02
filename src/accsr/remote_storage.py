@@ -119,7 +119,7 @@ class RemoteStorage:
             e.g 'local_base_dir' yields a path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
         :param overwrite_existing: Overwrite file if exists locally
-        :param path_regex: If not None only files with paths matching the regex will be pulled. If path points to a file an AttributeError is thrown.
+        :param path_regex: If not None only files with paths matching the regex will be pulled.
         :return: list of :class:`Object` instances referring to all downloaded files
         """
         remote_path_prefix_len = len(self.remote_base_path) + 1
@@ -130,10 +130,6 @@ class RemoteStorage:
                 f"No such remote file or directory: {remote_path}. Not pulling anything"
             )
             return []
-        if len(remote_objects) == 1 and path_regex is not None:
-            raise AttributeError(
-                f"You have to either choose a directory for '{path}' or don't use a regexp at all."
-            )
 
         downloaded_objects = []
         for remote_obj in remote_objects:
@@ -268,6 +264,7 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
+        path_regex: Pattern = None,
     ) -> Object:
         """
         Upload a local file into the remote storage. The remote path to
@@ -287,6 +284,7 @@ class RemoteStorage:
         :param path: Path to the local file to be uploaded, must not be absolute if ``local_path_prefix`` is specified
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param overwrite_existing: If the remote object already exists, overwrite it?
+        :param path_regex: If not None, and file does not match regular expression None is returned.
         :return: A :class:`Object` instance referring to the created object
         """
         log.debug(
@@ -303,6 +301,12 @@ class RemoteStorage:
             raise RuntimeError(
                 f"Remote object {remote_path} already exists and overwrite_existing=False"
             )
+
+        if path_regex is not None and not path_regex.match(path):
+            log.warning(
+                f"{path} does not match regular expression '{path_regex}'. Nothing is pushed."
+            )
+            return None
 
         # Skip upload if MD5 hashes match
         if remote_obj:
@@ -349,10 +353,14 @@ class RemoteStorage:
         """
         local_path = self._get_push_local_path(path, local_path_prefix)
         if os.path.isfile(local_path):
-            return [self.push_file(path, local_path_prefix, overwrite_existing)]
+            return [
+                self.push_file(
+                    path, local_path_prefix, overwrite_existing, path_regex=path_regex
+                )
+            ]
         elif os.path.isdir(local_path):
             return self.push_directory(
-                path, local_path_prefix, overwrite_existing, path_regex
+                path, local_path_prefix, overwrite_existing, path_regex=path_regex
             )
         else:
             raise FileNotFoundError(
