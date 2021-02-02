@@ -319,7 +319,7 @@ class RemoteStorage:
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
         path_regex: Pattern = None,
-    ) -> List[Union[Object, None]]:
+    ) -> List[Object]:
         """
         Upload a local file or directory into the remote storage. The remote path for uploading
         will be constructed from the remote_base_path and the provided path. The
@@ -341,7 +341,7 @@ class RemoteStorage:
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param overwrite_existing: If a remote object already exists, overwrite it?
         :param path_regex: If not None only files with paths matching the regex will be pushed. Gets used if path/local_path_prefix is a directory.
-        :return: A list of remote objects or None, describing which files where matched.
+        :return: A list of remote objects, describing which files where matched and pushed.
         """
         local_path = self._get_push_local_path(path, local_path_prefix)
         if os.path.isfile(local_path):
@@ -350,7 +350,7 @@ class RemoteStorage:
                 log.warning(
                     f"{path} does not match regular expression '{path_regex}'. Nothing is pushed."
                 )
-                return [None]
+                return []
 
             return [self.push_file(path, local_path_prefix, overwrite_existing)]
 
