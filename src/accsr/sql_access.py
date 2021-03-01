@@ -19,6 +19,7 @@ class DatabaseConfig:
     name: str
     user: str
     port: str
+    schema: str
     pw: str = field(repr=False)
     log_statements: bool = False
 
@@ -41,6 +42,7 @@ def get_session(db_config: DatabaseConfig) -> Session:
 def session_scope(db_config: DatabaseConfig) -> ContextManager[Session]:
     """Provide a transactional scope around a series of operations"""
     session = get_session(db_config)
+    session.execute(f"SET search_path TO {db_config.schema}")
     try:
         yield session
         session.commit()
