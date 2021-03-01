@@ -9,7 +9,7 @@ def test_db_config_repr_does_not_include_pw():
     Regression test for issue #6.
     """
     cfg = DatabaseConfig(
-        "host", "name", "user", "1234", pw="secretpass", log_statements=False
+        "host", "name", "user", "1234", schema="public", pw="secretpass", log_statements=False
     )
 
     assert cfg.pw not in repr(cfg)

@@ -19,9 +19,9 @@ class DatabaseConfig:
     name: str
     user: str
     port: str
-    schema: str
     pw: str = field(repr=False)
     log_statements: bool = False
+    schema: str = 'public'
 
 
 def get_engine(db_config: DatabaseConfig) -> Engine:
