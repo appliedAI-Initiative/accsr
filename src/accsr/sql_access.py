@@ -21,7 +21,7 @@ class DatabaseConfig:
     port: str
     pw: str = field(repr=False)
     log_statements: bool = False
-    schema: str = 'public'
+    schema: str = "public"
 
 
 def get_engine(db_config: DatabaseConfig) -> Engine:
