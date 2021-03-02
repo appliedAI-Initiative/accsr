@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import ContextManager
+from typing import ContextManager, Optional
 
 try:
     from sqlalchemy import create_engine
@@ -21,6 +21,7 @@ class DatabaseConfig:
     port: str
     pw: str = field(repr=False)
     log_statements: bool = False
+    schema: Optional[str] = None
 
 
 def get_engine(db_config: DatabaseConfig) -> Engine:
@@ -41,6 +42,8 @@ def get_session(db_config: DatabaseConfig) -> Session:
 def session_scope(db_config: DatabaseConfig) -> ContextManager[Session]:
     """Provide a transactional scope around a series of operations"""
     session = get_session(db_config)
+    if db_config.schema:
+        session.execute(f"SET search_path TO {db_config.schema}")
     try:
         yield session
         session.commit()
