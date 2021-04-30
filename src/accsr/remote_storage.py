@@ -99,12 +99,24 @@ class RemoteStorage:
         """
 
         destination_path = os.path.abspath(destination_path)
-        if not overwrite_existing and os.path.exists(destination_path):
-            log.debug(
-                f"Not downloading {remote_object.name} since target file already exists:"
-                f" {os.path.abspath(destination_path)}. Set overwrite_existing to True to force the download"
+        if os.path.isdir(destination_path):
+            raise FileExistsError(
+                f"Cannot pull file to a path which is an existing directory: {destination_path}"
             )
-            return False
+
+        if os.path.isfile(destination_path):
+            if not overwrite_existing:
+                log.debug(
+                    f"Not downloading {remote_object.name} since target file already exists:"
+                    f" {os.path.abspath(destination_path)}. Set overwrite_existing to True to force the download"
+                )
+                return False
+            if md5sum(destination_path) == remote_object.hash:
+                log.debug(
+                    f"File {destination_path} is identical to the pulled file, not downloading again"
+                )
+                return False
+
         log.debug(f"Fetching {remote_object.name} from {self.bucket.name}")
         os.makedirs(os.path.dirname(destination_path), exist_ok=True)
         remote_object.download(destination_path, overwrite_existing=overwrite_existing)
