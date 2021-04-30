@@ -1,14 +1,12 @@
 import logging.handlers
 import os
-import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Pattern, Union
+from typing import List, Optional, Pattern, Protocol
 
 import libcloud
 from libcloud.storage.base import Container, Object, StorageDriver
-from libcloud.storage.types import ObjectDoesNotExistError
 
 from accsr.files import md5sum
 
@@ -18,6 +16,18 @@ log = logging.getLogger(__name__)
 class Provider(str, Enum):
     GOOGLE_STORAGE = "google_storage"
     S3 = "s3"
+
+
+class RemoteObjectProtocol(Protocol):
+    name: str
+    size: int
+    hash: int
+    provider: str
+
+    def download(
+        self, download_path, overwrite_existing=False
+    ) -> Optional["RemoteObjectProtocol"]:
+        pass
 
 
 @dataclass
@@ -43,7 +53,7 @@ class RemoteStorage:
         self._bucket: Optional[Container] = None
         self.conf = conf
         self.provider = conf.provider
-        self.remote_base_path = conf.base_path
+        self.remote_base_path = conf.base_path.strip()
         possible_driver_kwargs = {
             "key": self.conf.key,
             "secret": self.conf.secret,
@@ -69,90 +79,107 @@ class RemoteStorage:
             self._bucket: Container = driver.get_container(self.conf.bucket)
         return self._bucket
 
-    def pull_file(
-        self, remote_path: str, local_base_dir=None, overwrite_existing=False
-    ) -> Optional[Object]:
+    def _get_relative_remote_path(self, remote_obj):
         """
-        Pull a file from remote storage. If a file with the same name already exists locally,
-        will not download anything unless overwrite_existing is True
-
-        :param remote_path: remote path on storage bucket relative to the configured remote base path.
-            e.g. 'data/ground_truth/some_file.json'
-        :param local_base_dir: Local base directory for constructing local path
-            e.g 'my/data/dir' yields the path
-            'my/data/dir/data/ground_truth/some_file.json' for the above remote_path example
-        :param overwrite_existing: Whether to overwrite_existing existing local files
-        :return: if a file was downloaded, returns a :class:`Object` instance referring to it
+        Returns the path to the remote object relative to configured base dir (as expected by pull_file)
         """
-        if local_base_dir is None:
-            local_base_dir = ""
-        download_path = os.path.join(local_base_dir, remote_path)
-        if os.path.exists(download_path):
-            if not overwrite_existing:
-                log.info(
-                    f"File {download_path} already exists locally, skipping download"
-                )
-                return
+        result = remote_obj.name
+        result = result.lstrip("/")
+        result = result[len(self.remote_base_path) :]
+        return result
 
-        remote_path = "/".join([self.remote_base_path, remote_path])
-        log.debug(f"Fetching {remote_path} from {self.bucket.name}")
-        remote_object = self.bucket.get_object(remote_path)
-        os.makedirs(os.path.dirname(download_path), exist_ok=True)
-        remote_object.download(download_path, overwrite_existing=overwrite_existing)
-        log.debug(f"Downloaded {remote_path} to {os.path.abspath(download_path)}")
-        return remote_object
+    def _pull_object(
+        self,
+        remote_object: RemoteObjectProtocol,
+        destination_path: str,
+        overwrite_existing=False,
+    ) -> bool:
+        """
+        Download the remote object to the destination path. Returns True if file was downloaded, else False
+        """
+
+        destination_path = os.path.abspath(destination_path)
+        if not overwrite_existing and os.path.exists(destination_path):
+            log.debug(
+                f"Not downloading {remote_object.name} since target file already exists:"
+                f" {os.path.abspath(destination_path)}. Set overwrite_existing to True to force the download"
+            )
+            return False
+        log.debug(f"Fetching {remote_object.name} from {self.bucket.name}")
+        os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+        remote_object.download(destination_path, overwrite_existing=overwrite_existing)
+        return True
+
+    def _full_remote_path(self, remote_path: str):
+        """
+        :param remote_path: remote_path on storage bucket relative to the configured remote base remote_path.
+            e.g. 'data/some_file.json'
+        :return: full remote remote_path on storage bucket. With the example above gives
+           "remote_base_path/data/some_file.json". Does not start with "/" even if remote_base_path is empty
+        """
+        # in google cloud paths cannot begin with / for pulling or listing (for pushing they can though...)
+        if self.remote_base_path:
+            remote_path = "/".join([self.remote_base_path, remote_path])
+        return remote_path
 
     def pull(
         self,
-        path: str,
-        local_base_dir=None,
+        remote_path: str,
+        local_base_dir="",
         overwrite_existing=False,
         path_regex: Pattern = None,
-    ):
+    ) -> List[RemoteObjectProtocol]:
         """
         Pull either a file or a directory under the given path relative to local_base_dir. Files with the same name
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
 
-        :param path: remote path on storage bucket relative to the configured remote base path.
+        :param remote_path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/some_file.json'
         :param local_base_dir: Local base directory for constructing local path
-            e.g 'local_base_dir' yields a path
+            e.g passing 'local_base_dir' will download to the path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
         :param overwrite_existing: Overwrite file if exists locally
         :param path_regex: If not None only files with paths matching the regex will be pulled.
-        :return: list of :class:`Object` instances referring to all downloaded files
+        :return: list of objects referring to all downloaded files
         """
-        remote_path_prefix_len = len(self.remote_base_path) + 1
-        remote_path = "/".join([self.remote_base_path, path])
-        remote_objects = list(self.bucket.list_objects(remote_path))
+        local_base_dir = os.path.abspath(local_base_dir)
+        full_remote_path = self._full_remote_path(remote_path)
+        remote_objects: List[RemoteObjectProtocol] = list(
+            self.bucket.list_objects(full_remote_path)
+        )
         if len(remote_objects) == 0:
             log.warning(
-                f"No such remote file or directory: {remote_path}. Not pulling anything"
+                f"No such remote file or directory: {full_remote_path}. Not pulling anything"
             )
             return []
 
+        def maybe_get_destination_path(obj: RemoteObjectProtocol):
+            # Due to a possible bug in libcloud or storage providers, directories may be listed in remote objects.
+            # We filter them out by checking for size
+            if obj.size == 0:
+                log.info(f"Skipping download of {obj.name} with size zero.")
+                return
+
+            relative_obj_path = self._get_relative_remote_path(obj)
+            if path_regex is not None:
+                if not path_regex.match(relative_obj_path):
+                    log.info(f"Skipping {relative_obj_path} due to regex {path_regex}")
+                return
+            return os.path.join(local_base_dir, relative_obj_path)
+
         downloaded_objects = []
         for remote_obj in remote_objects:
-            # Due to a possible bug in libcloud or storage providers, directories may be listed here.
-            # We filter them out by checking for size
-            if remote_obj.size == 0:
-                log.info(f"Skipping download of {remote_obj.name} with size zero.")
+            destination_path = maybe_get_destination_path(remote_obj)
+            if destination_path is None:
                 continue
 
-            # removing the remote prefix from the full path
-            remote_obj_path = remote_obj.name[remote_path_prefix_len:]
-            if path_regex is not None:
-                if not path_regex.match(remote_obj_path):
-                    log.info(f"Skipping {remote_obj_path} due to regex {path_regex}")
-                    continue
-
-            downloaded_object = self.pull_file(
-                remote_obj_path,
-                local_base_dir=local_base_dir,
+            was_downloaded = self._pull_object(
+                remote_obj,
+                destination_path,
                 overwrite_existing=overwrite_existing,
             )
-            if downloaded_object is not None:
-                downloaded_objects.append(downloaded_object)
+            if was_downloaded:
+                downloaded_objects.append(remote_obj)
 
         return downloaded_objects
 
