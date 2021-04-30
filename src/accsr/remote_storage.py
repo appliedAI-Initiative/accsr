@@ -322,6 +322,11 @@ class RemoteStorage:
         remote_path = self._get_push_remote_path(local_path)
 
         remote_obj = self.bucket.list_objects(remote_path)
+        if len(remote_obj) > 1:
+            raise RuntimeError(
+                f"Remote path {remote_path} exists and is a directory, will not overwrite it"
+            )
+
         if remote_obj and not overwrite_existing:
             raise RuntimeError(
                 f"Remote object {remote_path} already exists and overwrite_existing=False"
