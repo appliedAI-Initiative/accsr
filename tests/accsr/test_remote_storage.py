@@ -81,6 +81,7 @@ def test_pull_file(storage, change_to_resources_dir, tmpdir):
     assert os.path.isfile(os.path.join(local_base_dir, "sample.txt"))
     pulled_files = storage.pull("sample.txt")
     assert pulled_files == []
+    storage.delete("sample.txt")
 
 
 def test_pull_dir(storage, change_to_resources_dir, tmpdir):
@@ -91,6 +92,7 @@ def test_pull_dir(storage, change_to_resources_dir, tmpdir):
     assert len(os.listdir(os.path.join(local_base_dir, "sample_dir"))) == 2
     pulled_files = storage.pull("sample_dir")
     assert pulled_files == []
+    storage.delete("sample_dir")
 
 
 # TODO or not TODO: many cases are missing - pulling/pushing nonexisting files, checking names, testing overwriting.
