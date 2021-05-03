@@ -21,13 +21,3 @@ def get_config(reload=False) -> __Configuration:
     :return: the configuration instance
     """
     return _config_provider.get_config(reload=reload)
-
-
-__remote_storage_instance = None
-
-
-def default_remote_storage():
-    global __remote_storage_instance
-    if __remote_storage_instance is None:
-        __remote_storage_instance = RemoteStorage(get_config().remote_storage)
-    return __remote_storage_instance

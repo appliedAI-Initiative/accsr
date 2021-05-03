@@ -3,13 +3,6 @@ import os
 
 import pytest
 
-from config import default_remote_storage
-
-
-@pytest.fixture
-def storage():
-    return default_remote_storage()
-
 
 @pytest.fixture(scope="function")
 def change_to_resources_dir(test_resources, request):
