@@ -51,9 +51,10 @@ class RemoteStorage:
 
     def __init__(self, conf: RemoteStorageConfig):
         self._bucket: Optional[Container] = None
-        self.conf = conf
-        self.provider = conf.provider
-        self.remote_base_path = conf.base_path.strip()
+        self._conf = conf
+        self._provider = conf.provider
+        self._remote_base_path: str = None
+        self.set_remote_base_path(conf.base_path)
         possible_driver_kwargs = {
             "key": self.conf.key,
             "secret": self.conf.secret,
@@ -64,6 +65,26 @@ class RemoteStorage:
         self.driver_kwargs = {
             k: v for k, v in possible_driver_kwargs.items() if v is not None
         }
+
+    @property
+    def conf(self):
+        return self._conf
+
+    @property
+    def provider(self):
+        return self._provider
+
+    @property
+    def remote_base_path(self):
+        return self._remote_base_path
+
+    def set_remote_base_path(self, path: Optional[str]):
+        if path is None:
+            path = ""
+        else:
+            # google storage pulling and listing does not work with paths starting with "/"
+            path = path.strip().lstrip("/")
+        self._remote_base_path = path.strip()
 
     @property
     def bucket(self):
