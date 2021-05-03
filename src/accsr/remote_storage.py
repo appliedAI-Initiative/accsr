@@ -446,7 +446,7 @@ class RemoteStorage:
 
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
         :param path_regex: If not None only files with paths matching the regex will be deleted.
-        :return: list of objects referring to all deleted files
+        :return: list of remote objects referring to all deleted files
         """
         full_remote_path = self._full_remote_path(remote_path)
 
@@ -465,3 +465,11 @@ class RemoteStorage:
             self.bucket.delete_object(remote_obj)
             deleted_objects.append(remote_obj)
         return deleted_objects
+
+    def list_objects(self, remote_path) -> List[RemoteObjectProtocol]:
+        """
+        :param remote_path: remote path on storage bucket relative to the configured remote base path.
+        :return: list of remote objects under the remote path (multiple entries if the remote path is a directory)
+        """
+        full_remote_path = self._full_remote_path(remote_path)
+        return self.bucket.list_objects(full_remote_path)
