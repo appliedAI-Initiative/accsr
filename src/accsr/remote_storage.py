@@ -452,7 +452,9 @@ class RemoteStorage:
 
         remote_objects = self.bucket.list_objects(full_remote_path)
         if len(remote_objects) == 0:
-            log.warning(f"No such remote file or directory: {full_remote_path}. Not deleting anything")
+            log.warning(
+                f"No such remote file or directory: {full_remote_path}. Not deleting anything"
+            )
             return []
         deleted_objects = []
         for remote_obj in remote_objects:

@@ -1,7 +1,8 @@
 import logging
+import os
 
 import pytest
-import os
+
 from config import default_remote_storage
 
 
@@ -41,6 +42,7 @@ def test_delete_with_base_path(storage, change_to_resources_dir):
     assert len(deleted_objects) == 1
     assert deleted_objects[0].name == f"{base_path}/sample.txt"
 
+
 def test_delete_dir(storage, change_to_resources_dir):
     storage.push_directory("sample_dir", overwrite_existing=True)
     assert len(storage.list_objects("sample_dir")) == 2
@@ -50,6 +52,7 @@ def test_delete_dir(storage, change_to_resources_dir):
 
 
 # TODO: improve setup and cleanup for tests involving pushing
+
 
 def test_push_file_empty_base_path(storage, change_to_resources_dir):
     storage.delete("sample.txt")
@@ -95,5 +98,6 @@ def test_pull_dir(storage, change_to_resources_dir, tmpdir):
     assert len(os.listdir(os.path.join(local_base_dir, "sample_dir"))) == 2
     pulled_files = storage.pull("sample_dir")
     assert pulled_files == []
+
 
 # TODO or not TODO: many cases are missing - pulling/pushing nonexisting files, checking names, testing overwriting.

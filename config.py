@@ -1,6 +1,5 @@
-from accsr.remote_storage import RemoteStorage, RemoteStorageConfig
-
 from accsr.config import ConfigProviderBase, DefaultDataConfiguration
+from accsr.remote_storage import RemoteStorage, RemoteStorageConfig
 
 
 class __Configuration(DefaultDataConfiguration):
