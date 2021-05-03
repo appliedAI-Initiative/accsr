@@ -27,6 +27,7 @@ before_script:
   - pip install virtualenv
   - virtualenv venv
   - source venv/bin/activate
+  - mv $CONFIG_LOCAL ./config_local.json && echo "retrieved local config"
 
 tox_recreate:
   only:
