@@ -436,3 +436,32 @@ class RemoteStorage:
                 f"Local path {local_path} does not refer to a file or directory"
             )
 
+    def delete(
+        self,
+        remote_path: str,
+        path_regex: Pattern = None,
+    ) -> List[RemoteObjectProtocol]:
+        """
+        Deletes a file or a directory under the given path relative to local_base_dir. Use with caution.
+
+        :param remote_path: remote path on storage bucket relative to the configured remote base path.
+        :param path_regex: If not None only files with paths matching the regex will be deleted.
+        :return: list of objects referring to all deleted files
+        """
+        full_remote_path = self._full_remote_path(remote_path)
+
+        remote_objects = self.bucket.list_objects(full_remote_path)
+        if len(remote_objects) == 0:
+            log.warning(f"No such remote file or directory: {full_remote_path}. Not deleting anything")
+            return []
+        deleted_objects = []
+        for remote_obj in remote_objects:
+            remote_obj: RemoteObjectProtocol
+            relative_obj_path = self._get_relative_remote_path(remote_obj)
+            if path_regex is not None and not path_regex.match(relative_obj_path):
+                log.info(f"Skipping {relative_obj_path} due to regex {path_regex}")
+                continue
+            log.debug(f"Deleting {remote_obj.name}")
+            self.bucket.delete_object(remote_obj)
+            deleted_objects.append(remote_obj)
+        return deleted_objects
