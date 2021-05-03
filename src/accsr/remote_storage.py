@@ -102,7 +102,7 @@ class RemoteStorage:
 
     def _get_relative_remote_path(self, remote_obj):
         """
-        Returns the path to the remote object relative to configured base dir (as expected by pull_file)
+        Returns the path to the remote object relative to configured base dir (as expected by pull for a single file)
         """
         result = remote_obj.name
         result = result.lstrip("/")
@@ -266,11 +266,15 @@ class RemoteStorage:
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
         path_regex: Pattern = None,
-    ) -> List[Object]:
+    ) -> List[RemoteObjectProtocol]:
         """
-        Upload a directory from the given local path into the remote storage. The remote path to
-        which the directory is uploaded will be constructed from the remote_base_path and the provided path. The
-        local_path_prefix serves for finding the directory on the local system.
+        Upload a directory from the given local path into the remote storage. Does not upload files for which the md5sum
+        matches existing remote files.
+        The remote path to which the directory is uploaded will be constructed from the remote_base_path and the
+        provided path. The local_path_prefix serves for finding the directory on the local system.
+
+        Note: This method does not delete any remote objects within the directory where paths did not match the local
+        paths, even if overwrite_existing is true
 
         Examples:
            1) path=foo/bar, local_path_prefix=None -->
@@ -284,9 +288,10 @@ class RemoteStorage:
 
         :param path: Path to the local directory to be uploaded, may be absolute or relative
         :param local_path_prefix: Optional prefix for the local path
-        :param overwrite_existing: If a remote object already exists, overwrite it?
+        :param overwrite_existing: Whether to overwrite existing remote objects (if they have the same path but differing
+            md5sums).
         :param path_regex: If not None only files with paths matching the regex will be pushed.
-        :return: A list of :class:`Object` instances for all created objects
+        :return: A list of :class:`Object` instances for all remote objects that were created or matched existing files
         """
         log.debug(f"push_object({path=}, {local_path_prefix=}, {overwrite_existing=}")
         objects = []
@@ -324,11 +329,12 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
-    ) -> Object:
+    ) -> Optional[RemoteObjectProtocol]:
         """
-        Upload a local file into the remote storage. The remote path to
-        which the file is uploaded will be constructed from the remote_base_path and the provided path. The
-        local_path_prefix serves for finding the file on the local system.
+        Upload a local file into the remote storage. If the md5sum of the file matches an existing remote file,
+        nothing will be uploaded.
+        The remote path to which the file is uploaded will be constructed from the remote_base_path and the provided
+        path. The local_path_prefix serves for finding the file on the local system.
 
         Examples:
            1) path=foo/bar.json, local_path_prefix=None -->
@@ -343,7 +349,7 @@ class RemoteStorage:
         :param path: Path to the local file to be uploaded, must not be absolute if ``local_path_prefix`` is specified
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param overwrite_existing: If the remote object already exists, overwrite it?
-        :return: A :class:`Object` instance referring to the created object
+        :return: A :class:`Object` instance referring to the remote object
         """
         log.debug(
             f"push_file({path=}, {local_path_prefix=}, {self.remote_base_path=}, {overwrite_existing=}"
@@ -357,20 +363,21 @@ class RemoteStorage:
         remote_obj = self.bucket.list_objects(remote_path)
         if len(remote_obj) > 1:
             raise RuntimeError(
-                f"Remote path {remote_path} exists and is a directory, will not overwrite it"
+                f"Remote path {remote_path} exists and is a directory, will not overwrite it."
+                f"Consider calling push_directory or push instead."
             )
 
         if remote_obj and not overwrite_existing:
-            raise RuntimeError(
-                f"Remote object {remote_path} already exists and overwrite_existing=False"
-            )
-
-        # Skip upload if MD5 hashes match
-        if remote_obj:
             remote_obj = remote_obj[0]
+            # Skip upload if MD5 hashes match
             if md5sum(local_path) == remote_obj.hash:
-                log.info(f"Files are identical, not uploading again")
+                log.info(f"Files are identical, skipping upload")
                 return remote_obj
+            elif not overwrite_existing:
+                raise RuntimeError(
+                    f"Remote object {remote_path} already exists,\n is not identical to the local file {local_path}\n "
+                    f"and overwrite_existing=False"
+                )
 
         log.debug(f"Uploading: {local_path} --> {remote_path}")
         remote_obj = self.bucket.upload_object(
@@ -384,11 +391,12 @@ class RemoteStorage:
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
         path_regex: Pattern = None,
-    ) -> List[Object]:
+    ) -> List[RemoteObjectProtocol]:
         """
-        Upload a local file or directory into the remote storage. The remote path for uploading
-        will be constructed from the remote_base_path and the provided path. The
-        local_path_prefix serves for finding the directory on the local system.
+        Upload a local file or directory into the remote storage.
+        Does not upload files for which the md5sum matches existing remote files.
+        The remote path for uploading will be constructed from the remote_base_path and the provided path.
+        The local_path_prefix serves for finding the directory on the local system.
 
         Examples:
            1) path=foo/bar, local_path_prefix=None -->
@@ -405,8 +413,8 @@ class RemoteStorage:
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param overwrite_existing: If a remote object already exists, overwrite it?
-        :param path_regex: If not None only files with paths matching the regex will be pushed. Gets used if path/local_path_prefix is a directory.
-        :return: A list of remote objects, describing which files where matched and pushed.
+        :param path_regex: If not None only files with paths matching the regex will be pushed
+        :return: A list of :class:`Object` instances for all remote objects that were created or matched existing files
         """
         local_path = self._get_push_local_path(path, local_path_prefix)
         if os.path.isfile(local_path):
@@ -427,3 +435,4 @@ class RemoteStorage:
             raise FileNotFoundError(
                 f"Local path {local_path} does not refer to a file or directory"
             )
+
