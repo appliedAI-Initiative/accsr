@@ -1,8 +1,11 @@
 from accsr.config import ConfigProviderBase, DefaultDataConfiguration
+from accsr.remote_storage import RemoteStorage, RemoteStorageConfig
 
 
 class __Configuration(DefaultDataConfiguration):
-    pass
+    @property
+    def remote_storage(self):
+        return RemoteStorageConfig(**self._get_non_empty_entry("remote_storage_config"))
 
 
 class ConfigProvider(ConfigProviderBase[__Configuration]):

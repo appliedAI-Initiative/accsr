@@ -10,6 +10,7 @@ sql_requirements = ["SQLAlchemy>=1.3.18"]
 
 setup(
     name="accsr",
+    python_requires=">=3.8",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     include_package_data=True,
