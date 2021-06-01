@@ -105,8 +105,8 @@ class RemoteStorage:
         Returns the path to the remote object relative to configured base dir (as expected by pull for a single file)
         """
         result = remote_obj.name
-        result = result.lstrip("/")
         result = result[len(self.remote_base_path) :]
+        result = result.lstrip("/")
         return result
 
     def _pull_object(
