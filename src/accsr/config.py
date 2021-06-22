@@ -3,23 +3,21 @@ Contains helpers for defining and providing configuration classes. A typical usa
 *config.py*, *config.json* and *config_local.json* in a project's root directory. An example of a config.py for a
 data-driven project is:
 
-.. code-block:: python
-
-  from accsr.config import DefaultDataConfiguration, ConfigProviderBase
-
-  class __Configuration(DefaultDataConfiguration):
-       @property
-       def custom_entry(self):
-           return "custom_entry"
-
-  class ConfigProvider(ConfigProviderBase[__Configuration]):
-       pass
-
-  _config_provider = ConfigProvider()
-
-
-  def get_config(reload=False):
-       return _config_provider.get_config(reload=reload)
+>>> from accsr.config import DefaultDataConfiguration, ConfigProviderBase
+>>>
+>>> class __Configuration(DefaultDataConfiguration):
+...     @property
+...     def custom_entry(self):
+...         return "custom_entry"
+>>>
+>>> class ConfigProvider(ConfigProviderBase[__Configuration]):
+...     pass
+>>>
+>>> _config_provider = ConfigProvider()
+>>>
+>>>
+>>> def get_config(reload=False):
+...     return _config_provider.get_config(reload=reload)
 
 """
 
@@ -104,7 +102,7 @@ class ConfigurationBase(ABC):
                 raise Exception(f"Value for key '{key}' not set in configuration")
         return value
 
-    def _get_existing_path(self, key: Union[str, List[str]], create=False) -> str:
+    def _get_existing_path(self, key: Union[str, List[str]], create=True) -> str:
         """
         Retrieves an existing local path from the configuration
 
@@ -172,15 +170,15 @@ class DefaultDataConfiguration(ConfigurationBase, ABC):
 
     @property
     def artifacts(self):
-        return self._get_existing_path("artifacts", create=True)
+        return self._get_existing_path("artifacts")
 
     @property
     def visualizations(self):
-        return self._get_existing_path("visualizations", create=True)
+        return self._get_existing_path("visualizations")
 
     @property
     def temp(self):
-        return self._get_existing_path("temp", create=True)
+        return self._get_existing_path("temp")
 
     @property
     def data(self):
@@ -192,18 +190,22 @@ class DefaultDataConfiguration(ConfigurationBase, ABC):
 
     @property
     def data_cleaned(self):
-        return self._get_existing_path("data_cleaned", create=True)
+        return self._get_existing_path("data_cleaned")
 
     @property
     def data_processed(self):
-        return self._get_existing_path("data_processed", create=True)
+        return self._get_existing_path("data_processed")
 
     @property
     def data_ground_truth(self):
         return self._get_existing_path("data_ground_truth")
 
     def datafile_path(
-        self, filename: str, stage="raw", relative=False, check_existence=True
+        self,
+        filename: str,
+        stage="raw",
+        relative=False,
+        check_existence=False,
     ):
         """
         :param filename:
@@ -228,7 +230,7 @@ class DefaultDataConfiguration(ConfigurationBase, ABC):
             raise KeyError(f"Unknown stage: {stage}")
         return basedir
 
-    def artifact_path(self, name: str, relative=False, check_existence=True):
+    def artifact_path(self, name: str, relative=False, check_existence=False):
         """
         :param name:
         :param relative: If true, the returned path will be relative the project's top-level directory.
@@ -237,17 +239,6 @@ class DefaultDataConfiguration(ConfigurationBase, ABC):
         """
         full_path = os.path.join(self.artifacts, name)
         return self._adjusted_path(full_path, relative, check_existence)
-
-
-def get_config(reload=False) -> ConfigurationBase:
-    """
-    :param reload: if True, the configuration will be reloaded from the json files
-    :return: the configuration instance
-    """
-    global __config_instance
-    if __config_instance is None or reload:
-        __config_instance = ConfigurationBase()
-    return __config_instance
 
 
 ConfigurationClass = TypeVar("ConfigurationClass", bound=ConfigurationBase)
@@ -290,6 +281,15 @@ class ConfigProviderBase(Generic[ConfigurationClass], ABC):
         )
 
     def get_config(self, reload=False, *args, **kwargs) -> ConfigurationClass:
+        """
+        Retrieves the configuration object (as singleton).
+
+        :param reload: if True, the config will be reloaded from disc even if it a configuration object already exists.
+            This is mainly useful in interactive environments like notebooks
+        :param args: passed to init of the configuration class
+        :param kwargs: passed to init of the configuration class constructor
+        :return:
+        """
         if self._should_update_config_instance(reload, args, kwargs):
             self._config_args = args
             self._config_kwargs = kwargs
