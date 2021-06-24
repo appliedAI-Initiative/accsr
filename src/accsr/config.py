@@ -284,7 +284,7 @@ class ConfigProviderBase(Generic[ConfigurationClass], ABC):
         """
         Retrieves the configuration object (as singleton).
 
-        :param reload: if True, the config will be reloaded from disc even if it a configuration object already exists.
+        :param reload: if True, the config will be reloaded from disk even if it a configuration object already exists.
             This is mainly useful in interactive environments like notebooks
         :param args: passed to init of the configuration class
         :param kwargs: passed to init of the configuration class constructor
