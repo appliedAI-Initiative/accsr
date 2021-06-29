@@ -9,12 +9,11 @@
   "data": "./data",
 
   "remote_storage_config": {
-    "key": "minio",
-    "secret": "minio123",
+    "key": "",
+    "secret": "",
     "bucket": "accsr-integration-tests",
     "base_path": "",
     "provider": "s3",
-    "host": "localhost",
-    "port": "9000"
+    "host": "minio.admin.aai.sh"
   }
 }
