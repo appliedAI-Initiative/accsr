@@ -1,3 +1,4 @@
+import json
 import os
 from urllib.parse import urljoin
 
@@ -35,16 +36,18 @@ def get_config() -> __Configuration:
     """
     :return: the configuration instance
     """
-    if os.getenv("GITLAB_CI") == "true":
-        config = _config_provider.get_config(config_files=["config_gitlab_ci.json"])
-    else:
-        config = _config_provider.get_config()
+    config = _config_provider.get_config(config_files=["config_test.json"])
     return config
 
 
 @pytest.fixture()
 def test_resources():
     return TEST_RESOURCES
+
+
+@pytest.fixture(scope="session")
+def running_on_ci() -> bool:
+    return os.getenv("GITLAB_CI") is not None or os.getenv("CI") is not None
 
 
 @pytest.fixture(scope="session")
@@ -55,10 +58,10 @@ def docker_compose_file(pytestconfig):
 
 
 @pytest.fixture(scope="module")
-def remote_storage_server(docker_ip, docker_services):
+def remote_storage_server(running_on_ci, docker_ip, docker_services):
     """Starts minio container and makes sure it is reachable."""
     # Skips starting the container if we running on Gitlab CI or Github Actions
-    if os.getenv("GITLAB_CI") is not None or os.getenv("CI") is not None:
+    if running_on_ci:
         return
     # `port_for` takes a container port and returns the corresponding host port
     port = docker_services.port_for("remote-storage", 9000)
@@ -79,7 +82,14 @@ def remote_storage_server(docker_ip, docker_services):
 
 
 @pytest.fixture(scope="module")
-def create_bucket(remote_storage_server):
+def remote_storage_config(running_on_ci):
+    if running_on_ci:
+        with open("config_local.json", "w") as f:
+            json.dump({"remote_storage_config": {"host": "remote-storage"}}, f)
+
+
+@pytest.fixture(scope="module")
+def create_bucket(remote_storage_config, remote_storage_server):
     # create bucket if it doesn't exist already
     config = get_config().remote_storage
     storage_driver_factory = get_driver(config.provider)
