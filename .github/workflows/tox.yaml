@@ -16,6 +16,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      remote-storage:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ACCESS_KEY: minio
+          MINIO_SECRET_KEY: minio123
+        ports:
+        - 9000:9000
+
     steps:
       # pandoc needed for docu, see https://nbsphinx.readthedocs.io/en/0.7.1/installation.html?highlight=pandoc#pandoc
       - name: Install Non-Python Packages

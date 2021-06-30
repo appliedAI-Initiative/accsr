@@ -57,8 +57,8 @@ def docker_compose_file(pytestconfig):
 @pytest.fixture(scope="module")
 def remote_storage_server(docker_ip, docker_services):
     """Starts minio container and makes sure it is reachable."""
-    # Skips starting the container if we are in Gitlab CI
-    if os.getenv("GITLAB_CI") is not None:
+    # Skips starting the container if we running on Gitlab CI or Github Actions
+    if os.getenv("GITLAB_CI") is not None or os.getenv("CI") is not None:
         return
     # `port_for` takes a container port and returns the corresponding host port
     port = docker_services.port_for("remote-storage", 9000)
