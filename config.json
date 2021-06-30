@@ -9,8 +9,8 @@
   "data": "./data",
 
   "remote_storage_config": {
-    "key": "",
-    "secret": "",
+    "key": null,
+    "secret": null,
     "bucket": "accsr-integration-tests",
     "base_path": "",
     "provider": "s3",
