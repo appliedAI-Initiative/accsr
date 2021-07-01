@@ -36,7 +36,9 @@ def get_config() -> __Configuration:
     """
     :return: the configuration instance
     """
-    config = _config_provider.get_config(config_files=["config_test.json"])
+    config = _config_provider.get_config(
+        config_files=["config_test.json", "config_local.json"]
+    )
     return config
 
 
