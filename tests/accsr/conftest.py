@@ -84,7 +84,7 @@ def remote_storage_server(running_on_ci, docker_ip, docker_services):
 @pytest.fixture(scope="module")
 def remote_storage_config(running_on_ci):
     if running_on_ci:
-        with open("config_local.json", "w") as f:
+        with open(os.path.join(top_level_directory, "config_local.json"), "w") as f:
             json.dump({"remote_storage_config": {"host": "remote-storage"}}, f)
 
 
