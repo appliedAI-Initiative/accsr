@@ -11,7 +11,7 @@ def change_to_resources_dir(test_resources, request):
     os.chdir(request.config.invocation_dir)
 
 
-def test_delete_no_mathes(storage, caplog):
+def test_delete_no_matches(storage, caplog):
     with caplog.at_level(logging.WARNING):
         deleted_files = storage.delete("there is no such file")
     assert deleted_files == []
