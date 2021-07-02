@@ -104,6 +104,16 @@ def test_push_directory(storage, test_dirname):
 
 
 @pytest.mark.parametrize(
+    "file_or_dir_name", ["non_existing_file.txt", "non_existing_dir"]
+)
+def test_push_non_existing(storage, file_or_dir_name):
+    with pytest.raises(
+        FileNotFoundError, match="does not refer to a file or directory"
+    ):
+        storage.push(file_or_dir_name)
+
+
+@pytest.mark.parametrize(
     "test_filename",
     ["sample.txt"],
     indirect=["test_filename"],
@@ -114,6 +124,21 @@ def test_pull_file(storage, test_filename, tmpdir):
     assert os.path.isfile(os.path.join(local_base_dir, test_filename))
     pulled_files = storage.pull(test_filename)
     assert pulled_files == []
+
+
+@pytest.mark.parametrize(
+    "test_filename",
+    ["sample.txt"],
+    indirect=["test_filename"],
+)
+def test_pull_file_to_existing_dir_path(storage, test_filename, tmpdir):
+    local_base_dir = tmpdir.mkdir("remote_storage")
+    local_base_dir.mkdir(test_filename)
+    with pytest.raises(
+        FileExistsError,
+        match="Cannot pull file to a path which is an existing directory:",
+    ):
+        storage.pull(test_filename, local_base_dir=local_base_dir)
 
 
 @pytest.mark.parametrize(
@@ -130,4 +155,14 @@ def test_pull_dir(storage, test_dirname, tmpdir):
     assert pulled_files == []
 
 
-# TODO or not TODO: many cases are missing - pulling/pushing nonexisting files, checking names, testing overwriting.
+@pytest.mark.parametrize(
+    "file_or_dir_name", ["non_existing_file.txt", "non_existing_dir"]
+)
+def test_pull_non_existing(storage, file_or_dir_name, caplog):
+    with caplog.at_level(logging.WARNING):
+        pulled_files = storage.pull(file_or_dir_name)
+    assert not pulled_files
+    assert "No such remote file or directory" in caplog.text
+
+
+# TODO or not TODO: many cases are missing - checking names, testing overwriting.
