@@ -4,7 +4,7 @@ import os
 import pytest
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def change_to_resources_dir(test_resources, request):
     os.chdir(test_resources)
     yield
