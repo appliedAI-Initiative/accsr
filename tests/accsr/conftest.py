@@ -42,7 +42,7 @@ def get_config() -> __Configuration:
     return config
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def test_resources():
     return TEST_RESOURCES
 
