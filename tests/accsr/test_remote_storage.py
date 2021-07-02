@@ -37,7 +37,7 @@ def test_dirname(
 def test_delete_no_matches(storage, caplog):
     with caplog.at_level(logging.WARNING):
         deleted_files = storage.delete("there is no such file")
-    assert deleted_files == []
+    assert not deleted_files
     assert "Not deleting anything" in caplog.text
 
 
@@ -123,7 +123,7 @@ def test_pull_file(storage, test_filename, tmpdir):
     storage.pull(test_filename, local_base_dir=local_base_dir)
     assert os.path.isfile(os.path.join(local_base_dir, test_filename))
     pulled_files = storage.pull(test_filename)
-    assert pulled_files == []
+    assert not pulled_files
 
 
 @pytest.mark.parametrize(
@@ -152,7 +152,7 @@ def test_pull_dir(storage, test_dirname, tmpdir):
     assert os.path.isdir(os.path.join(local_base_dir, test_dirname))
     assert len(os.listdir(os.path.join(local_base_dir, test_dirname))) == 2
     pulled_files = storage.pull(test_dirname)
-    assert pulled_files == []
+    assert not pulled_files
 
 
 @pytest.mark.parametrize(
