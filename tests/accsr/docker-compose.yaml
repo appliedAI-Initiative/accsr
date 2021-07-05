@@ -1,0 +1,10 @@
+version: '2'
+services:
+  remote-storage:
+    image: bitnami/minio:latest
+    ports:
+    - "9000:9000"
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+

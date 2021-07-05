@@ -138,3 +138,6 @@ pylint.html
 
 # Editor config
 .vscode
+
+# Minio
+.minio*

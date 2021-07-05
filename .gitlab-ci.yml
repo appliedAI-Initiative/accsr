@@ -57,6 +57,12 @@ tox_use_cache:
     <<: *global_cache
     policy: pull
   stage: tox
+  services:
+    - name: bitnami/minio:latest
+      alias: remote-storage
+  variables:
+    MINIO_ACCESS_KEY: minio
+    MINIO_SECRET_KEY: minio123
   script:
     - pip install tox
     - tox
