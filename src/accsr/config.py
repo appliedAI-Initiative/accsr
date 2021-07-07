@@ -102,19 +102,23 @@ class ConfigurationBase(ABC):
                 raise Exception(f"Value for key '{key}' not set in configuration")
         return value
 
-    def _get_existing_path(self, key: Union[str, List[str]], create=True) -> str:
+    def _get_existing_path(self, key: Union[str, List[str]], create=True, relative_to_config_dir=True) -> str:
         """
         Retrieves an existing local path from the configuration
 
         :param key: key or list of keys to go through hierarchically
         :param create: if True, a directory with the given path will be created on the fly.
+        :param relative_to_config_dir: If True, the returned path will be relative to the config directory
         :return: the queried path
         """
         path_string = self._get_non_empty_entry(key)
         if os.path.isabs(path_string):
             path = path_string
         else:
-            path = os.path.abspath(os.path.join(self.config_directory, path_string))
+            if relative_to_config_dir:
+                path = os.path.abspath(os.path.join(self.config_directory, path_string))
+            else:
+                path = os.path.abspath(path_string)
         if not os.path.exists(path):
             if isinstance(key, list):
                 key = ".".join(key)  # purely for logging
