@@ -116,11 +116,10 @@ class ConfigurationBase(ABC):
         path_string = self._get_non_empty_entry(key)
         if os.path.isabs(path_string):
             path = path_string
+        elif relative_to_config_dir:
+            path = os.path.abspath(os.path.join(self.config_directory, path_string))
         else:
-            if relative_to_config_dir:
-                path = os.path.abspath(os.path.join(self.config_directory, path_string))
-            else:
-                path = os.path.abspath(path_string)
+            path = os.path.abspath(path_string)
         if not os.path.exists(path):
             if isinstance(key, list):
                 key = ".".join(key)  # purely for logging
