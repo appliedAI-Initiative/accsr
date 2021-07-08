@@ -150,7 +150,6 @@ class ConfigurationBase(ABC):
         path: str,
         relative: bool,
         check_existence: bool,
-        relative_to_config_dir=True,
     ):
         """
         :param path:
@@ -162,14 +161,10 @@ class ConfigurationBase(ABC):
         if check_existence and not os.path.exists(path):
             raise FileNotFoundError(f"No such file: {path}")
         if relative:
-            if relative_to_config_dir:
+            if self.root_directory is None:
                 return str(Path(path).relative_to(self.config_directory))
-            elif self.root_directory is not None:
-                return str(Path(path).relative_to(self.root_directory))
             else:
-                raise ValueError(
-                    "Either relative_to_config_dir has to be True or the root_directory should not be None to retrieve a correct  relative path."
-                )
+                return str(Path(path).relative_to(self.root_directory))
         return path
 
 
