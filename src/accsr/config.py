@@ -51,12 +51,7 @@ class ConfigurationBase(ABC):
     instead inherit from it.
     """
 
-    def __init__(
-        self,
-        config_directory: str = None,
-        config_files: List[str] = None,
-        root_directory: str = None,
-    ):
+    def __init__(self, config_directory: str = None, config_files: List[str] = None):
         """
         :param config_directory: directory where to look for the config files. Typically this will be a project's
             root directory. If None, the directory with the module containing the configuration class definition
@@ -64,9 +59,7 @@ class ConfigurationBase(ABC):
         :param config_files: list of JSON configuration files (relative to config_directory) from which to read.
             If None, reads from 'config.json' and 'config_local.json'
             (latter files have precedence)
-        :param root_directory: The project's root directory name, relevant when it is not the same as the config_directory
         """
-        self.root_directory = root_directory
         self.config_directory = (
             config_directory
             if config_directory is not None
@@ -109,28 +102,19 @@ class ConfigurationBase(ABC):
                 raise Exception(f"Value for key '{key}' not set in configuration")
         return value
 
-    def _get_existing_path(
-        self, key: Union[str, List[str]], create=True, relative_to_config_dir=True
-    ) -> str:
+    def _get_existing_path(self, key: Union[str, List[str]], create=True) -> str:
         """
         Retrieves an existing local path from the configuration
 
-        :param key: Key or list of keys to go through hierarchically
-        :param create: If True, a directory with the given path will be created on the fly.
-        :param relative_to_config_dir: If True, the returned path will be relative to the config directory
+        :param key: key or list of keys to go through hierarchically
+        :param create: if True, a directory with the given path will be created on the fly.
         :return: the queried path
         """
         path_string = self._get_non_empty_entry(key)
         if os.path.isabs(path_string):
             path = path_string
-        elif relative_to_config_dir:
-            path = os.path.abspath(os.path.join(self.config_directory, path_string))
-        elif self.root_directory is not None:
-            path = os.path.abspath(os.path.join(self.root_directory, path_string))
         else:
-            raise ValueError(
-                "Either relative_to_config_dir has to be True or the root_directory should not be None to retrieve a correct path."
-            )
+            path = os.path.abspath(os.path.join(self.config_directory, path_string))
         if not os.path.exists(path):
             if isinstance(key, list):
                 key = ".".join(key)  # purely for logging
@@ -145,12 +129,7 @@ class ConfigurationBase(ABC):
                 )
         return path.replace("/", os.sep)
 
-    def _adjusted_path(
-        self,
-        path: str,
-        relative: bool,
-        check_existence: bool,
-    ):
+    def _adjusted_path(self, path: str, relative: bool, check_existence: bool):
         """
         :param path:
         :param relative: If true, the returned path will be relative the project's top-level directory.
@@ -161,10 +140,7 @@ class ConfigurationBase(ABC):
         if check_existence and not os.path.exists(path):
             raise FileNotFoundError(f"No such file: {path}")
         if relative:
-            if self.root_directory is None:
-                return str(Path(path).relative_to(self.config_directory))
-            else:
-                return str(Path(path).relative_to(self.root_directory))
+            return str(Path(path).relative_to(self.config_directory))
         return path
 
 
