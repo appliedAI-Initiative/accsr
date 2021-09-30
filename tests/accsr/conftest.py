@@ -9,6 +9,7 @@ from libcloud.storage.types import (
     ContainerAlreadyExistsError,
     InvalidContainerNameError,
 )
+from pytest_docker.plugin import get_docker_services
 from requests.exceptions import ConnectionError
 
 from accsr.config import ConfigProviderBase, DefaultDataConfiguration
@@ -50,6 +51,19 @@ def test_resources():
 @pytest.fixture(scope="session")
 def running_on_ci() -> bool:
     return os.getenv("GITLAB_CI") is not None or os.getenv("CI") is not None
+
+
+@pytest.fixture(scope="session")
+def docker_services(
+    docker_compose_file, docker_compose_project_name, docker_cleanup, running_on_ci
+):
+    if running_on_ci:
+        yield
+    else:
+        with get_docker_services(
+            docker_compose_file, docker_compose_project_name, docker_cleanup
+        ) as docker_service:
+            yield docker_service
 
 
 @pytest.fixture(scope="session")
