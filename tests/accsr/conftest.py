@@ -57,6 +57,7 @@ def running_on_ci() -> bool:
 def docker_services(
     docker_compose_file, docker_compose_project_name, docker_cleanup, running_on_ci
 ):
+    """This overwrites pytest-docker's docker_services fixture to avoid starting containers on CI"""
     if running_on_ci:
         yield
     else:
@@ -75,7 +76,8 @@ def docker_compose_file(pytestconfig):
 
 @pytest.fixture(scope="module")
 def remote_storage_server(running_on_ci, docker_ip, docker_services):
-    """Starts minio container and makes sure it is reachable."""
+    """Starts minio container and makes sure it is reachable.
+    The containers will not be created on CI."""
     # Skips starting the container if we running on Gitlab CI or Github Actions
     if running_on_ci:
         return
@@ -99,6 +101,8 @@ def remote_storage_server(running_on_ci, docker_ip, docker_services):
 
 @pytest.fixture(scope="module")
 def remote_storage_config(running_on_ci):
+    """This create a config_local.json on CI with remote_storage host set to 'remote-storage'.
+    This value can be found in the docker-compose.yaml file."""
     if running_on_ci:
         with open(os.path.join(top_level_directory, "config_local.json"), "w") as f:
             json.dump({"remote_storage_config": {"host": "remote-storage"}}, f)
