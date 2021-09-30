@@ -30,6 +30,9 @@ before_script:
   - mv $CONFIG_LOCAL ./config_local.json && echo "retrieved local config"
 
 tox_recreate:
+  services:
+    - name: bitnami/minio:latest
+      alias: remote-storage
   only:
     changes:
       # recreate environments if dependencies have changed
