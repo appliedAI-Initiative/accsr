@@ -30,9 +30,7 @@ before_script:
   - mv $CONFIG_LOCAL ./config_local.json && echo "retrieved local config"
 
 tox_recreate:
-  services:
-    - name: bitnami/minio:latest
-      alias: remote-storage
+  stage: tox
   only:
     changes:
       # recreate environments if dependencies have changed
@@ -40,7 +38,12 @@ tox_recreate:
   cache:
     <<: *global_cache
     policy: push
-  stage: tox
+  services:
+    - name: bitnami/minio:latest
+      alias: remote-storage
+  variables:
+    MINIO_ACCESS_KEY: minio
+    MINIO_SECRET_KEY: minio123
   script:
     - pip install tox
     - tox -r
@@ -52,6 +55,7 @@ tox_recreate:
       - pylint.html
 
 tox_use_cache:
+  stage: tox
   except:
     changes:
       #   use cache if environments if dependencies haven't changed
@@ -59,7 +63,6 @@ tox_use_cache:
   cache:
     <<: *global_cache
     policy: pull
-  stage: tox
   services:
     - name: bitnami/minio:latest
       alias: remote-storage
