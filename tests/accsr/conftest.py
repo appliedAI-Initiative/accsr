@@ -105,7 +105,9 @@ def remote_storage_config(running_on_ci):
     This value can be found in the docker-compose.yaml file."""
     if running_on_ci:
         with open(os.path.join(top_level_directory, "config_local.json"), "w") as f:
-            json.dump({"remote_storage_config": {"host": "remote-storage"}}, f)
+            json.dump(
+                {"remote_storage_config": {"host": "remote-storage", "port": "9000"}}, f
+            )
 
 
 @pytest.fixture(scope="module")
