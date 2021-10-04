@@ -258,7 +258,7 @@ class RemoteStorage:
         :param local_path:
         :return:
         """
-        return "/".join([self.remote_base_path, local_path]).replace("//", "/")
+        return "/".join([self.remote_base_path, local_path]).replace(os.sep, "/")
 
     def push_directory(
         self,
