@@ -23,6 +23,20 @@ def test_filename(
     storage.delete(filename)
 
 
+NAME_COLLISIONS_DIR_NAME = "storage_name_collisions"
+
+
+@pytest.fixture()
+def setup_name_collision(change_to_resources_dir, storage):
+    """
+    Pushes files and dirs with colliding names to remote storage, yields files pushed
+    and deletes everything at cleanup
+    """
+    pushed_objects = storage.push(NAME_COLLISIONS_DIR_NAME)
+    yield pushed_objects
+    storage.delete(NAME_COLLISIONS_DIR_NAME)
+
+
 @pytest.fixture()
 def test_dirname(
     change_to_resources_dir, storage, request
@@ -163,6 +177,39 @@ def test_pull_non_existing(storage, file_or_dir_name, caplog):
         pulled_files = storage.pull(file_or_dir_name)
     assert len(pulled_files) == 0
     assert "No such remote file or directory" in caplog.text
+
+
+def test_name_collisions_pulling_properly(setup_name_collision, storage, tmpdir):
+    storage.set_remote_base_path(NAME_COLLISIONS_DIR_NAME)
+    local_base_dir = tmpdir.mkdir("remote_storage")
+    colliding_file_name = "file.txt.collision"
+    colliding_dir_name = "dir_name_collision"
+
+    storage.pull("file.txt", local_base_dir=local_base_dir)
+    storage.pull("dir_name", local_base_dir=local_base_dir)
+    assert not os.path.isfile(os.path.join(local_base_dir, colliding_file_name))
+    assert os.path.isfile(os.path.join(local_base_dir, "file.txt"))
+
+    assert not os.path.isdir(os.path.join(local_base_dir, colliding_dir_name))
+    assert os.path.isdir(os.path.join(local_base_dir, "dir_name"))
+
+    storage.pull(colliding_file_name, local_base_dir=local_base_dir)
+    assert os.path.isfile(os.path.join(local_base_dir, colliding_file_name))
+
+    storage.pull(colliding_dir_name, local_base_dir=local_base_dir)
+    assert os.path.isfile(os.path.join(local_base_dir, colliding_dir_name, "file.txt"))
+
+
+def test_name_collisions_deleting_properly(setup_name_collision, storage):
+    storage.set_remote_base_path(NAME_COLLISIONS_DIR_NAME)
+    storage.delete("file.txt")
+    remaining_object_names = [
+        obj.name.lstrip("/").lstrip(f"{NAME_COLLISIONS_DIR_NAME}/")
+        for obj in storage.list_objects("")
+    ]
+    assert "file.txt" not in remaining_object_names
+    assert "file.txt.collision" in remaining_object_names
+    assert "dir_name/file.txt" in remaining_object_names
 
 
 # TODO or not TODO: many cases are missing - checking names, testing overwriting.

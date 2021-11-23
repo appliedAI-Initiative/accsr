@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional, Pattern, Protocol
 
 import libcloud
-from libcloud.storage.base import Container, Object, StorageDriver
+from libcloud.storage.base import Container, StorageDriver
 
 from accsr.files import md5sum
 
@@ -100,7 +100,15 @@ class RemoteStorage:
             self._bucket: Container = driver.get_container(self.conf.bucket)
         return self._bucket
 
-    def _get_relative_remote_path(self, remote_obj):
+    @staticmethod
+    def _get_remote_path(remote_obj: RemoteObjectProtocol):
+        """
+        Returns the full path to the remote object. The resulting path never starts with "/" as it can cause problems
+        with some backends (e.g. google cloud storage).
+        """
+        return remote_obj.name.lstrip("/")
+
+    def _get_relative_remote_path(self, remote_obj: RemoteObjectProtocol):
         """
         Returns the path to the remote object relative to configured base dir (as expected by pull for a single file)
         """
@@ -151,9 +159,34 @@ class RemoteStorage:
            "remote_base_path/data/some_file.json". Does not start with "/" even if remote_base_path is empty
         """
         # in google cloud paths cannot begin with / for pulling or listing (for pushing they can though...)
-        if self.remote_base_path:
-            remote_path = "/".join([self.remote_base_path, remote_path])
-        return remote_path
+        remote_path = "/".join([self.remote_base_path, remote_path])
+        return remote_path.lstrip("/")
+
+    @staticmethod
+    def _listed_due_to_name_collision(
+        full_remote_path: str, remote_object: RemoteObjectProtocol
+    ):
+        """
+        Checks whether a remote object was falsely listed because its name starts with the same
+        characters as full_remote_path.
+
+        Example 1: full remote path is pull/this/dir and the remote storage includes paths like pull/this/dir_subfix.
+        Example 2: full remote path is delete/this/file and the remote storage includes paths like delete/this/file_2.
+
+        All such paths will be listed in bucket.list_objects(full_remote_path) and we need to exclude them in
+        most methods like pull or delete.
+
+        :param full_remote_path: usually the output of self._full_remote_path(remote_path)
+        :param remote_object: the object to check
+        :return:
+        """
+        if full_remote_path.endswith("/"):  # no name collisions possible in this case
+            return False
+
+        object_remote_path = RemoteStorage._get_remote_path(remote_object)
+        is_in_selected_dir = object_remote_path.startswith(full_remote_path + "/")
+        is_selected_file = object_remote_path == full_remote_path
+        return not (is_in_selected_dir or is_selected_file)
 
     def pull(
         self,
@@ -161,8 +194,9 @@ class RemoteStorage:
         local_base_dir="",
         overwrite_existing=False,
         path_regex: Pattern = None,
+        convert_to_linux_path=True,
     ) -> List[RemoteObjectProtocol]:
-        """
+        r"""
         Pull either a file or a directory under the given path relative to local_base_dir. Files with the same name
         as locally already existing ones will not be downloaded anything unless overwrite_existing is True
 
@@ -172,10 +206,17 @@ class RemoteStorage:
             e.g passing 'local_base_dir' will download to the path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
         :param overwrite_existing: Overwrite file if exists locally
-        :param path_regex: If not None only files with paths matching the regex will be pulled.
+        :param path_regex: If not None only files with paths matching the regex will be pulled. This is useful for
+            filtering files within a remote directory before pulling them.
+        :param convert_to_linux_path: if True, will convert windows path to linux path (as needed by remote storage) and
+            thus passing a remote path like 'data\my\path' will be converted to 'data/my/path' before pulling.
+            This should only be set to False if you want to pull a remote object with '\' in its file name
+            (which is discouraged).
         :return: list of objects referring to all downloaded files
         """
         local_base_dir = os.path.abspath(local_base_dir)
+        if convert_to_linux_path:
+            remote_path = remote_path.replace("\\", "/")
         full_remote_path = self._full_remote_path(remote_path)
         remote_objects: List[RemoteObjectProtocol] = list(
             self.bucket.list_objects(full_remote_path)
@@ -191,6 +232,13 @@ class RemoteStorage:
             # We filter them out by checking for size
             if obj.size == 0:
                 log.info(f"Skipping download of {obj.name} with size zero.")
+                return
+
+            if self._listed_due_to_name_collision(full_remote_path, obj):
+                log.debug(
+                    f"Skipping download of {obj.name}. "
+                    f"It was listed due to name collision and should not be pulled"
+                )
                 return
 
             relative_obj_path = self._get_relative_remote_path(obj)
@@ -360,7 +408,11 @@ class RemoteStorage:
             raise FileNotFoundError(f"Local path {local_path} does not refer to a file")
         remote_path = self._get_push_remote_path(local_path)
 
-        remote_obj = self.bucket.list_objects(remote_path)
+        remote_obj = [
+            obj
+            for obj in self.bucket.list_objects(remote_path)
+            if not self._listed_due_to_name_collision(remote_path, obj)
+        ]
         if len(remote_obj) > 1:
             raise RuntimeError(
                 f"Remote path {remote_path} exists and is a directory, will not overwrite it."
@@ -459,6 +511,13 @@ class RemoteStorage:
         deleted_objects = []
         for remote_obj in remote_objects:
             remote_obj: RemoteObjectProtocol
+
+            if self._listed_due_to_name_collision(full_remote_path, remote_obj):
+                log.debug(
+                    f"Skipping deletion of {remote_obj.name} as it was listed due to name collision"
+                )
+                continue
+
             relative_obj_path = self._get_relative_remote_path(remote_obj)
             if path_regex is not None and not path_regex.match(relative_obj_path):
                 log.info(f"Skipping {relative_obj_path} due to regex {path_regex}")
