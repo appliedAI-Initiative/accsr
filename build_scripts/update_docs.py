@@ -90,9 +90,9 @@ def make_rst(src_root="src", docs_root="docs", clean=False, overwrite=False):
         if not os.path.isdir(top_level_package_dir) or "." in top_level_package_name:
             continue
 
-        write_to_file(
-            index_template(top_level_package_name), os.path.join(docs_root, "index.rst")
-        )
+        index_rst_path = os.path.join(docs_root, top_level_package_name, "index.rst")
+        log.info(f"Creating {index_rst_path}")
+        write_to_file(index_template(top_level_package_dir), index_rst_path)
 
         top_level_package_docs_dir = os.path.join(docs_root, top_level_package_name)
 
@@ -111,10 +111,12 @@ def make_rst(src_root="src", docs_root="docs", clean=False, overwrite=False):
             for dirname in dirnames:
                 if not dirname.startswith("_"):
                     package_qualname = f"{base_package_qualname}.{dirname}"
-                    package_rst_path = os.path.join(
-                        top_level_package_docs_dir,
-                        base_package_relpath,
-                        f"{dirname}.rst",
+                    package_rst_path = os.path.abspath(
+                        os.path.join(
+                            top_level_package_docs_dir,
+                            base_package_relpath,
+                            f"{dirname}.rst",
+                        )
                     )
                     log.info(f"Writing package documentation to {package_rst_path}")
                     write_to_file(package_template(package_qualname), package_rst_path)
@@ -123,10 +125,12 @@ def make_rst(src_root="src", docs_root="docs", clean=False, overwrite=False):
                 base_name, ext = os.path.splitext(filename)
                 if ext == ".py" and not filename.startswith("_"):
                     module_qualname = f"{base_package_qualname}.{filename[:-3]}"
-                    module_rst_path = os.path.join(
-                        top_level_package_docs_dir,
-                        base_package_relpath,
-                        f"{base_name}.rst",
+                    module_rst_path = os.path.abspath(
+                        os.path.join(
+                            top_level_package_docs_dir,
+                            base_package_relpath,
+                            f"{base_name}.rst",
+                        )
                     )
                     if os.path.exists(module_rst_path) and not overwrite:
                         log.debug(f"{module_rst_path} already exists, skipping it")
