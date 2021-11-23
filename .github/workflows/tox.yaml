@@ -18,7 +18,7 @@ jobs:
     # This is needed to enable host name resolution for the minio service from the tests
     #https://docs.github.com/en/actions/using-containerized-services/about-service-containers#mapping-docker-host-and-service-container-ports
     # https://docs.github.com/en/actions/using-containerized-services/creating-redis-service-containers#running-jobs-in-containers
-    container: python:3.8-buster-slim
+    container: python:3.8-slim-buster
     services:
       remote-storage:
         image: bitnami/minio:latest
