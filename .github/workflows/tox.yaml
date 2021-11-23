@@ -43,6 +43,8 @@ jobs:
       - name: Merge develop into current branch
         if: github.ref != 'refs/heads/develop'
         run: |
+          git config --global user.email "robot@github.com"
+          git config --global user.name "github_robot_user"
           git fetch origin develop:develop --update-head-ok
           git merge develop
       - name: Setup Python 3.8
