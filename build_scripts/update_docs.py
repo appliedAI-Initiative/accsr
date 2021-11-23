@@ -97,7 +97,7 @@ def make_rst(src_root="src", docs_root="docs", clean=False, overwrite=False):
 
         index_rst_path = os.path.join(docs_root, top_level_package_name, "index.rst")
         log.info(f"Creating {index_rst_path}")
-        write_to_file(index_template(top_level_package_dir), index_rst_path)
+        write_to_file(index_template(top_level_package_name), index_rst_path)
 
         for root, dirnames, filenames in os.walk(top_level_package_dir):
             if os.path.basename(root).startswith("_"):
