@@ -2,6 +2,7 @@
 .idea
 config_local.json
 .pylint.d
+temp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
