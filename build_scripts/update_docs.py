@@ -90,14 +90,14 @@ def make_rst(src_root="src", docs_root="docs", clean=False, overwrite=False):
         if not os.path.isdir(top_level_package_dir) or "." in top_level_package_name:
             continue
 
+        top_level_package_docs_dir = os.path.join(docs_root, top_level_package_name)
+        if clean and os.path.isdir(top_level_package_docs_dir):
+            log.info(f"Deleting top_level_package_docs_dir since clean=True")
+            shutil.rmtree(top_level_package_docs_dir)
+
         index_rst_path = os.path.join(docs_root, top_level_package_name, "index.rst")
         log.info(f"Creating {index_rst_path}")
         write_to_file(index_template(top_level_package_dir), index_rst_path)
-
-        top_level_package_docs_dir = os.path.join(docs_root, top_level_package_name)
-
-        if clean and os.path.isdir(top_level_package_docs_dir):
-            shutil.rmtree(top_level_package_docs_dir)
 
         for root, dirnames, filenames in os.walk(top_level_package_dir):
             if os.path.basename(root).startswith("_"):
