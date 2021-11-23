@@ -51,22 +51,24 @@ class ConfigurationBase(ABC):
     instead inherit from it.
     """
 
-    def __init__(self, config_directory: str = None, config_files: List[str] = None):
+    def __init__(
+        self,
+        config_directory: str = None,
+        config_files=("config.json", "config_local.json"),
+    ):
         """
         :param config_directory: directory where to look for the config files. Typically this will be a project's
             root directory. If None, the directory with the module containing the configuration class definition
             (inherited from ConfigurationBase) will be used.
         :param config_files: list of JSON configuration files (relative to config_directory) from which to read.
-            If None, reads from 'config.json' and 'config_local.json'
-            (latter files have precedence)
+            The configurations will be merged (dicts are merged, everything else is overwritten),
+            entries more to the right have precedence.
         """
         self.config_directory = (
             config_directory
             if config_directory is not None
             else self._module_dir_path()
         )
-        if config_files is None:
-            config_files = ["config.json", "config_local.json"]
         self.config = {}
         for filename in config_files:
             file_path = os.path.join(self.config_directory, filename)
