@@ -1,12 +1,6 @@
 tox
-pytest
-jupyter
-nbconvert==5.6.1
-pylint
-anybadge
-sphinx
 bump2version
 black
-pytest-lazy-fixture
-pytest-docker==0.10.3
+isort==5.6.4
+nbstripout==0.5.0
 pre-commit
