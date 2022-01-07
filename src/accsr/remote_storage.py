@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Pattern, Protocol, Union
+from typing import List, Optional, Pattern, Protocol
 from tqdm import tqdm
 
 import libcloud
@@ -256,7 +256,7 @@ class RemoteStorage:
             relative_obj_path = self._get_relative_remote_path(obj)
             return os.path.join(local_base_dir, relative_obj_path)
 
-        def maybe_get_destination_path(obj: RemoteObjectProtocol) -> Union:
+        def maybe_get_destination_path(obj: RemoteObjectProtocol):
             """
             Returns the destination path if object is valid and None otherwise.
             """
