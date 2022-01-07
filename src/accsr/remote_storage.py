@@ -3,7 +3,8 @@ import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Pattern, Protocol
+from typing import List, Optional, Pattern, Protocol, Union
+from tqdm import tqdm
 
 import libcloud
 from libcloud.storage.base import Container, StorageDriver
@@ -227,48 +228,69 @@ class RemoteStorage:
             )
             return []
 
-        def maybe_get_destination_path(obj: RemoteObjectProtocol):
-            # Due to a possible bug in libcloud or storage providers, directories may be listed in remote objects.
-            # We filter them out by checking for size
-            if obj.size == 0:
-                log.info(f"Skipping download of {obj.name} with size zero.")
-                return
+        def is_valid_object(obj: RemoteObjectProtocol) -> bool:
+            """
+            Checks the validity of an remote object. An remote object obj  is invalid if
+            - It has size 0. This indicates that the object is a folder and it gets selected due to a possible bug in
+                libcloud.
+            - The object is listed due to a name collision (see also RemoteStorage._listed_due_to_name_collision)
+            - the location of the object matches the path regex filter
 
-            if self._listed_due_to_name_collision(full_remote_path, obj):
-                log.debug(
-                    f"Skipping download of {obj.name}. "
-                    f"It was listed due to name collision and should not be pulled"
-                )
-                return
-
-            relative_obj_path = self._get_relative_remote_path(obj)
-            if path_regex is not None:
+            :param: RemoteObjectProtocol: The remote object
+            :return: True if object is valid else False
+            """
+            if (obj.size == 0) or (self._listed_due_to_name_collision(full_remote_path, obj)):
+                return False
+            elif path_regex is not None:
+                relative_obj_path = self._get_relative_remote_path(obj)
                 if not path_regex.match(relative_obj_path):
                     log.info(f"Skipping {relative_obj_path} due to regex {path_regex}")
-                return
+                return False
+            else:
+                return True
+
+        def get_destination_path(obj: RemoteObjectProtocol):
+            """
+            Return the destination path of the given object
+            """
+            relative_obj_path = self._get_relative_remote_path(obj)
             return os.path.join(local_base_dir, relative_obj_path)
 
+        def maybe_get_destination_path(obj: RemoteObjectProtocol) -> Union:
+            """
+            Returns the destination path if object is valid and None otherwise.
+            """
+            return get_destination_path(obj) if is_valid_object(obj) else None
+
+        # Filter invalid objects and compute overall download size
+        download_size = 0
+        all_remote_objects = remote_objects
+        remote_objects = []
+        for obj in all_remote_objects:
+            if is_valid_object(obj):
+                remote_objects.append(obj)
+                download_size += obj.size
+
         downloaded_objects = []
-        for remote_obj in remote_objects:
-            destination_path = maybe_get_destination_path(remote_obj)
-            if destination_path is None:
-                continue
+        with tqdm(total=download_size) as pbar:
+            for remote_obj in remote_objects:
+                destination_path = get_destination_path(remote_obj)
 
-            was_downloaded = self._pull_object(
-                remote_obj,
-                destination_path,
-                overwrite_existing=overwrite_existing,
-            )
-            if was_downloaded:
-                downloaded_objects.append(remote_obj)
+                was_downloaded = self._pull_object(
+                    remote_obj,
+                    destination_path,
+                    overwrite_existing=overwrite_existing,
+                )
+                if was_downloaded:
+                    downloaded_objects.append(remote_obj)
 
+                pbar.update(remote_obj.size)
         return downloaded_objects
 
     @staticmethod
     def _get_push_local_path(path: str, local_path_prefix: Optional[str] = None) -> str:
         """
         Get the full local path of a file for pushing, including an optional path prefix.
-
         Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
 
         **Usage Examples:**
@@ -350,26 +372,43 @@ class RemoteStorage:
                 f"Local path {local_path} does not refer to a directory"
             )
 
+        # Determine upload size
+        log.debug('Computing upload size.')
+        upload_size = 0
         for root, _, files in os.walk(local_path):
-            log.debug(f"Root directory: {root}")
-            log.debug(f"Files: {files}")
             rel_root_path = os.path.relpath(local_path, root)
-
-            root_path = Path(root)
             for file in files:
                 if path_regex is not None:
                     remote_obj_path = os.path.join(rel_root_path, file)
-                    if not path_regex.match(remote_obj_path):
-                        log.info(
-                            f"Skipping {remote_obj_path} due to regex {path_regex}"
-                        )
-                        continue
+                    if path_regex.match(remote_obj_path):
+                        upload_size += os.path.getsize(os.sep.join([root, file]))
+                else:
+                    upload_size += os.path.getsize(os.sep.join([root, file]))
+        log.info(f"Uploading {upload_size} bytes.")
 
-                log.debug(f"Upload: {file=}, {root_path=}")
-                obj = self.push_file(
-                    file, root_path, overwrite_existing=overwrite_existing
-                )
-                objects.append(obj)
+        # Push all files
+        with tqdm(total=upload_size) as pbar:
+            for root, _, files in os.walk(local_path):
+                log.debug(f"Root directory: {root}")
+                log.debug(f"Files: {files}")
+                rel_root_path = os.path.relpath(local_path, root)
+
+                root_path = Path(root)
+                for file in files:
+                    if path_regex is not None:
+                        remote_obj_path = os.path.join(rel_root_path, file)
+                        if not path_regex.match(remote_obj_path):
+                            log.info(
+                                f"Skipping {remote_obj_path} due to regex {path_regex}"
+                            )
+                            continue
+
+                    log.debug(f"Upload: {file=}, {root_path=}")
+                    obj = self.push_file(
+                        file, root_path, overwrite_existing=overwrite_existing
+                    )
+                    objects.append(obj)
+                    pbar.update(os.path.getsize(os.sep.join([root, file])))
         return objects
 
     def push_file(
@@ -404,6 +443,7 @@ class RemoteStorage:
         )
 
         local_path = self._get_push_local_path(path, local_path_prefix)
+
         if not os.path.isfile(local_path):
             raise FileNotFoundError(f"Local path {local_path} does not refer to a file")
         remote_path = self._get_push_remote_path(local_path)
@@ -425,7 +465,7 @@ class RemoteStorage:
             if md5sum(local_path) == remote_obj.hash:
                 log.info(f"Files are identical, skipping upload")
                 return remote_obj
-            elif not overwrite_existing:
+            else:
                 raise RuntimeError(
                     f"Remote object {remote_path} already exists,\n is not identical to the local file {local_path}\n "
                     f"and overwrite_existing=False"
@@ -435,6 +475,7 @@ class RemoteStorage:
         remote_obj = self.bucket.upload_object(
             local_path, remote_path, verify_hash=False
         )
+
         return remote_obj
 
     def push(
@@ -477,7 +518,12 @@ class RemoteStorage:
                 )
                 return []
 
-            return [self.push_file(path, local_path_prefix, overwrite_existing)]
+            file_size = os.path.getsize(local_path)
+            with tqdm(total=file_size) as pbar:
+                result = [self.push_file(path, local_path_prefix, overwrite_existing)]
+                pbar.update(file_size)
+
+            return result
 
         elif os.path.isdir(local_path):
             return self.push_directory(
