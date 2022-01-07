@@ -272,7 +272,7 @@ class RemoteStorage:
                 download_size += obj.size
 
         downloaded_objects = []
-        with tqdm(total=download_size) as pbar:
+        with tqdm(total=download_size, desc='Progress (Bytes)') as pbar:
             for remote_obj in remote_objects:
                 destination_path = get_destination_path(remote_obj)
 
@@ -387,7 +387,7 @@ class RemoteStorage:
         log.info(f"Uploading {upload_size} bytes.")
 
         # Push all files
-        with tqdm(total=upload_size) as pbar:
+        with tqdm(total=upload_size, desc='Progress (Bytes)') as pbar:
             for root, _, files in os.walk(local_path):
                 log.debug(f"Root directory: {root}")
                 log.debug(f"Files: {files}")
@@ -519,7 +519,7 @@ class RemoteStorage:
                 return []
 
             file_size = os.path.getsize(local_path)
-            with tqdm(total=file_size) as pbar:
+            with tqdm(total=file_size, desc='Progress (Bytes)') as pbar:
                 result = [self.push_file(path, local_path_prefix, overwrite_existing)]
                 pbar.update(file_size)
 
