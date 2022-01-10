@@ -18,7 +18,7 @@ def test_filename(
 ) -> Generator[str, None, None]:
     """Pushes a file to remote storage, yields its filename and then deletes it from remote storage"""
     filename = request.param
-    storage.push_file(filename)
+    storage.push(filename)
     yield filename
     storage.delete(filename)
 
@@ -43,7 +43,7 @@ def test_dirname(
 ) -> Generator[str, None, None]:
     """Pushes a directory to remote storage, yields its name and then deletes it from remote storage"""
     dirname = request.param
-    storage.push_directory(dirname)
+    storage.push(dirname)
     yield dirname
     storage.delete(dirname)
 
@@ -56,7 +56,7 @@ def test_delete_no_matches(storage, caplog):
 
 
 def test_delete_file(storage):
-    storage.push_file("sample.txt", overwrite_existing=True)
+    storage.push("sample.txt", overwrite_existing=True)
     assert len(storage.list_objects("sample.txt")) == 1
     deleted_objects = storage.delete("sample.txt")
     assert len(deleted_objects) == 1
@@ -66,7 +66,7 @@ def test_delete_file(storage):
 def test_delete_with_base_path(storage):
     base_path = "base_path"
     storage.set_remote_base_path(base_path)
-    storage.push_file("sample.txt", overwrite_existing=True)
+    storage.push("sample.txt", overwrite_existing=True)
     assert len(storage.list_objects("sample.txt")) == 1
     deleted_objects = storage.delete("sample.txt")
     assert len(deleted_objects) == 1
@@ -74,7 +74,7 @@ def test_delete_with_base_path(storage):
 
 
 def test_delete_dir(storage):
-    storage.push_directory("sample_dir", overwrite_existing=True)
+    storage.push("sample_dir", overwrite_existing=True)
     assert len(storage.list_objects("sample_dir")) == 2
     deleted_objects = storage.delete("sample_dir")
     assert len(deleted_objects) == 2
@@ -136,7 +136,7 @@ def test_pull_file(storage, test_filename, tmpdir):
     local_base_dir = tmpdir.mkdir("remote_storage")
     storage.pull(test_filename, local_base_dir=local_base_dir)
     assert os.path.isfile(os.path.join(local_base_dir, test_filename))
-    pulled_files = storage.pull(test_filename)
+    pulled_files = storage.pull(test_filename, overwrite_existing=False, force=True)
     assert len(pulled_files) == 0
 
 
@@ -165,7 +165,7 @@ def test_pull_dir(storage, test_dirname, tmpdir):
     storage.pull(test_dirname, local_base_dir=local_base_dir)
     assert os.path.isdir(os.path.join(local_base_dir, test_dirname))
     assert len(os.listdir(os.path.join(local_base_dir, test_dirname))) == 2
-    pulled_files = storage.pull(test_dirname)
+    pulled_files = storage.pull(test_dirname, overwrite_existing=False, force=True)
     assert len(pulled_files) == 0
 
 
@@ -176,7 +176,7 @@ def test_pull_non_existing(storage, file_or_dir_name, caplog):
     with caplog.at_level(logging.WARNING):
         pulled_files = storage.pull(file_or_dir_name)
     assert len(pulled_files) == 0
-    assert "No such remote file or directory" in caplog.text
+    assert "Not pulling anything from remote path:" in caplog.text
 
 
 def test_name_collisions_pulling_properly(setup_name_collision, storage, tmpdir):

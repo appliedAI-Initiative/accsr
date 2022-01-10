@@ -31,6 +31,19 @@ class RemoteObjectProtocol(Protocol):
         pass
 
 
+class LocalObject(RemoteObjectProtocol):
+    def download(
+        self, download_path, overwrite_existing=False
+    ) -> Optional["RemoteObjectProtocol"]:
+        return None
+
+    def __init__(self, path):
+        self.name = path
+        self.size = os.path.getsize(path)
+        self.hash = md5sum(path)
+        self.provider = "local"
+
+
 @dataclass
 class RemoteStorageConfig:
     provider: str
@@ -179,75 +192,128 @@ class RemoteStorage:
         self,
         remote_path: str,
         local_base_dir="",
-        overwrite_existing=None,
-        on_file_exists="abort",
+        overwrite_existing=False,
+        force=False,
         path_regex: Pattern = None,
         convert_to_linux_path=True,
-        simulate=False,
-    ) -> Union[List[RemoteObjectProtocol], List[Tuple[str, str]]]:
+        dryrun=False,
+    ) -> List[RemoteObjectProtocol]:
         r"""
         Pull either a file or a directory under the given path relative to local_base_dir.
 
+        :param dryrun: If True simulates the pull operation and the returns the objects that would have been pulled.
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/some_file.json'
         :param local_base_dir: Local base directory for constructing local path
             e.g passing 'local_base_dir' will download to the path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
-        :param overwrite_existing: Overwrite file if exists locally
-            - True: overwrite existing files
-            - False: abort if an already existing file is encountered. In case of an abort no files are pulled.
-            - None: behavior is specified via on_file_exists
-        :param on_file_exists: behavior on already existing files.
-            - 'skip': skip existing files
-            - 'overwrite': overwrite existing files
-            - 'abort': abort if an already existing file is encountered. In case of an abort no files are pulled.
-            Note: on_file_exists is overwritten if a bool value is passed to overwrite_existing.
+        :param overwrite_existing: Overwrite file if it exists locally
+        :param force: If False will raise an error if an already existing file is encountered. If True the behavior
+        on existing files is specified via overwrite_existing
         :param path_regex: If not None only files with paths matching the regex will be pulled. This is useful for
             filtering files within a remote directory before pulling them.
         :param convert_to_linux_path: if True, will convert windows path to linux path (as needed by remote storage) and
             thus passing a remote path like 'data\my\path' will be converted to 'data/my/path' before pulling.
             This should only be set to False if you want to pull a remote object with '\' in its file name
             (which is discouraged).
-        :param simulate: If True, the pull operation is only simulated and the operations that would be performed are
-            returned
         :return: list of objects referring to all downloaded files
         """
-
-        # Behavior on existing file specification
-        if isinstance(overwrite_existing, bool):
-            on_file_exists = "overwrite" if overwrite_existing else "abort"
 
         local_base_dir = os.path.abspath(local_base_dir)
         if convert_to_linux_path:
             remote_path = remote_path.replace("\\", "/")
+
+        summary = self.collect_pull_summary(remote_path, local_base_dir, path_regex)
+
+        valid_remote_objects = summary["new_files"]
+        existing_eq_md5 = summary["existing_eq_md5"]
+        existing_neq_md5 = summary["existing_neq_md5"]
+        existing = existing_neq_md5 + existing_eq_md5
+
+        download_list = valid_remote_objects
+        if overwrite_existing:
+            download_list = download_list + existing_neq_md5
+        download_size = sum([obj.size for obj in download_list])
+
+        if not force and len(existing) > 0:
+            log.error(
+                "Found existing files. Not pulling anything. To skip all existing files use force=True."
+            )
+            files_str = "\n".join(
+                self._get_destination_path(obj, local_base_dir) for obj in existing
+            )
+            raise FileExistsError(f"Found already existing files:\n {files_str}")
+
+        if dryrun:
+            log.info(
+                f"""
+                Pull summary:
+                Download size: {download_size}
+                # Files: {len(valid_remote_objects)}
+                Existing files with md5 hash identical to remote: {len(existing_eq_md5)} 
+                Existing files with md5 hash different from remote: {len(existing_neq_md5)}
+                """
+            )
+            return download_list
+
+        if len(download_list) == 0:
+            log.warning(f"Not pulling anything from remote path: {remote_path}.")
+            return []
+
+        # pull selected files
+        downloaded_objects = []
+        with tqdm(total=download_size, desc="Progress (Bytes)") as pbar:
+            for remote_obj in valid_remote_objects:
+                destination_path = self._get_destination_path(
+                    remote_obj, local_base_dir
+                )
+                self._pull_object(
+                    remote_obj,
+                    destination_path,
+                    overwrite_existing=overwrite_existing,
+                )
+                downloaded_objects.append(remote_obj)
+                pbar.update(remote_obj.size)
+
+        return downloaded_objects
+
+    def _get_destination_path(self, obj: RemoteObjectProtocol, local_base_dir):
+        """
+        Return the destination path of the given object
+        """
+        relative_obj_path = self._get_relative_remote_path(obj)
+        return os.path.join(local_base_dir, relative_obj_path)
+
+    def collect_pull_summary(
+        self,
+        remote_path: str,
+        local_base_dir="",
+        path_regex: Pattern = None,
+    ) -> dict:
+        """
+        Creates a pull summary that contains
+        - list of all remote files that do not exist locally
+        - list of all remote files that already exist locally and have the same MD5 hash as the remote file
+        - list of all remote files that already exist locally and have a different MD5 hash from the remote file
+        :param remote_path: remote path on storage bucket relative to the configured remote base path.
+            e.g. 'data/ground_truth/some_file.json'
+        :param local_base_dir: Local base directory for constructing local path
+            e.g passing 'local_base_dir' will download to the path
+            'local_base_dir/data/ground_truth/some_file.json' in the above example
+        :param path_regex: If not None only files with paths matching the regex will be pulled. This is useful for
+            filtering files within a remote directory before pulling them.
+        :return: pull summary as a dictionary
+        """
         full_remote_path = self._full_remote_path(remote_path)
         remote_objects: List[RemoteObjectProtocol] = list(
             self.bucket.list_objects(full_remote_path)
         )
-        if len(remote_objects) == 0:
-            log.warning(
-                f"No such remote file or directory: {full_remote_path}. Not pulling anything"
-            )
-            return []
 
-        def get_destination_path(obj: RemoteObjectProtocol):
-            """
-            Return the destination path of the given object
-            """
-            relative_obj_path = self._get_relative_remote_path(obj)
-            return os.path.join(local_base_dir, relative_obj_path)
-
-        # Filter invalid objects and compute overall download size. Invalid objects:
-        # - Directories
-        # - Files listed due to name collisions
-        # - Files that do no match regex
-        # - File already exists and on_file_exists != 'overide'
-        # - Source and target file have the same md5 hash
-        download_size = 0
         valid_remote_objects = []
+        existing_eq_md5 = []
+        existing_neq_md5 = []
         for obj in remote_objects:
             valid = True
-            exists = False
             if (obj.size == 0) or (
                 self._listed_due_to_name_collision(full_remote_path, obj)
             ):
@@ -258,51 +324,23 @@ class RemoteStorage:
                     log.info(f"Skipping {relative_obj_path} due to regex {path_regex}")
                     valid = False
 
-            if on_file_exists != "overwrite":
-                # Check if file exists
-                destination_path = get_destination_path(obj)
-                if os.path.isfile(destination_path):
-                    log.debug(
-                        f"Not downloading {obj.name} since target file already exists:"
-                        f" {os.path.abspath(destination_path)}. Set overwrite_existing to True to force the download"
-                    )
-                    valid = False
-                    if on_file_exists == "abort":
-                        log.info(f"Abort because {destination_path} already exists")
-                        return []
-            else:
+            destination_path = self._get_destination_path(obj, local_base_dir)
+            if os.path.isfile(destination_path):
+                valid = False
                 if md5sum(destination_path) == obj.hash:
-                    log.debug(
-                        f"File {destination_path} is identical to the pulled file, not downloading again"
-                    )
-                    valid = False
-
+                    existing_eq_md5.append(obj)
+                else:
+                    existing_neq_md5.append(obj)
             if valid:
                 valid_remote_objects.append(obj)
-                download_size += obj.size
 
-        if simulate:
-            st_pairs = [
-                (self._get_remote_path(obj), get_destination_path(obj))
-                for obj in remote_objects
-            ]
-            log.info(f"Simulation completed. Returning protocol")
-            return st_pairs
-        else:
-            # pull valid files
-            downloaded_objects = []
-            with tqdm(total=download_size, desc="Progress (Bytes)") as pbar:
-                for remote_obj in valid_remote_objects:
-                    destination_path = get_destination_path(remote_obj)
-                    self._pull_object(
-                        remote_obj,
-                        destination_path,
-                        overwrite_existing=overwrite_existing,
-                    )
-                    downloaded_objects.append(remote_obj)
-                    pbar.update(remote_obj.size)
+        summary = {
+            "new_files": valid_remote_objects,
+            "existing_eq_md5": existing_eq_md5,
+            "existing_neq_md5": existing_neq_md5,
+        }
 
-            return downloaded_objects
+        return summary
 
     @staticmethod
     def _get_push_local_path(path: str, local_path_prefix: Optional[str] = None) -> str:
@@ -347,162 +385,81 @@ class RemoteStorage:
         """
         return "/".join([self.remote_base_path, local_path]).replace(os.sep, "/")
 
-    def push_directory(
+    def collect_push_summary(
         self,
         path: str,
         local_path_prefix: Optional[str] = None,
-        overwrite_existing=True,
         path_regex: Pattern = None,
-    ) -> List[RemoteObjectProtocol]:
+    ) -> dict:
         """
-        Upload a directory from the given local path into the remote storage. Does not upload files for which the md5sum
-        matches existing remote files.
-        The remote path to which the directory is uploaded will be constructed from the remote_base_path and the
-        provided path. The local_path_prefix serves for finding the directory on the local system.
+        Collect summary of the push operation
 
-        Note: This method does not delete any remote objects within the directory where paths did not match the local
-        paths, even if overwrite_existing is true
-
-        Examples:
-           1) path=foo/bar, local_path_prefix=None -->
-                ./foo/bar uploaded to remote_base_path/foo/bar
-           2) path=/home/foo/bar, local_path_prefix=None -->
-                /home/foo/bar uploaded to remote_base_path/home/foo/bar
-           3) path=bar, local_path_prefix=/home/foo -->
-                /home/foo/bar uploaded to remote_base_path/bar
-
-        Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
-
-        :param path: Path to the local directory to be uploaded, may be absolute or relative
-        :param local_path_prefix: Optional prefix for the local path
-        :param overwrite_existing: Whether to overwrite existing remote objects (if they have the same path but differing
-            md5sums).
-        :param path_regex: If not None only files with paths matching the regex will be pushed.
+        :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
+        :param local_path_prefix: Prefix to be concatenated with ``path``
+        :param path_regex: If not None only files with paths matching the regex will be pushed
         :return: A list of :class:`Object` instances for all remote objects that were created or matched existing files
         """
-        log.debug(f"push_object({path=}, {local_path_prefix=}, {overwrite_existing=}")
-        objects = []
-
         local_path = self._get_push_local_path(path, local_path_prefix)
-        if not os.path.isdir(local_path):
+        if os.path.isfile(local_path):
+            files = [local_path]
+        elif os.path.isdir(local_path):
+            files = []
+            for root, _, fs in os.walk(local_path):
+                files = files + [os.path.join(root, f) for f in fs]
+        else:
             raise FileNotFoundError(
-                f"Local path {local_path} does not refer to a directory"
+                f"Local path {local_path} does not refer to a file or directory"
             )
 
-        # Determine upload size
-        log.debug("Computing upload size.")
-        upload_size = 0
-        for root, _, files in os.walk(local_path):
-            rel_root_path = os.path.relpath(local_path, root)
-            for file in files:
-                if path_regex is not None:
-                    remote_obj_path = os.path.join(rel_root_path, file)
-                    if path_regex.match(remote_obj_path):
-                        upload_size += os.path.getsize(os.sep.join([root, file]))
+        if path_regex is not None and not path_regex.match(path):
+            log.warning(
+                f"{path} does not match regular expression '{path_regex}'. Nothing is pushed."
+            )
+            return {"new_files": [], "existing_eq_md5": [], "existing_neq_,d5": []}
+
+        valid_files = []
+        existing_eq_md5 = []
+        existing_neq_md5 = []
+        for file in files:
+            valid = True
+            remote_path = self._get_push_remote_path(file)
+            remote_obj = [
+                obj
+                for obj in self.bucket.list_objects(remote_path)
+                if not self._listed_due_to_name_collision(remote_path, obj)
+            ]
+            if len(remote_obj) > 1:
+                valid = False
+
+            if remote_obj:
+                remote_obj = remote_obj[0]
+                # Skip upload if MD5 hashes match
+                if md5sum(local_path) == remote_obj.hash:
+                    valid = False
+                    existing_eq_md5.append(LocalObject(file))
                 else:
-                    upload_size += os.path.getsize(os.sep.join([root, file]))
-        log.info(f"Uploading {upload_size} bytes.")
+                    valid = False
+                    existing_neq_md5.append(LocalObject(file))
 
-        # Push all files
-        with tqdm(total=upload_size, desc="Progress (Bytes)") as pbar:
-            for root, _, files in os.walk(local_path):
-                log.debug(f"Root directory: {root}")
-                log.debug(f"Files: {files}")
-                rel_root_path = os.path.relpath(local_path, root)
+            if valid:
+                valid_files.append(LocalObject(file))
 
-                root_path = Path(root)
-                for file in files:
-                    if path_regex is not None:
-                        remote_obj_path = os.path.join(rel_root_path, file)
-                        if not path_regex.match(remote_obj_path):
-                            log.info(
-                                f"Skipping {remote_obj_path} due to regex {path_regex}"
-                            )
-                            continue
+        summary = {
+            "new_files": valid_files,
+            "existing_eq_md5": existing_eq_md5,
+            "existing_neq_d5": existing_neq_md5,
+        }
 
-                    log.debug(f"Upload: {file=}, {root_path=}")
-                    obj = self.push_file(
-                        file, root_path, overwrite_existing=overwrite_existing
-                    )
-                    objects.append(obj)
-                    pbar.update(os.path.getsize(os.sep.join([root, file])))
-        return objects
-
-    def push_file(
-        self,
-        path: str,
-        local_path_prefix: Optional[str] = None,
-        overwrite_existing=None,
-    ) -> Optional[RemoteObjectProtocol]:
-        """
-        Upload a local file into the remote storage. If the md5sum of the file matches an existing remote file,
-        nothing will be uploaded.
-        The remote path to which the file is uploaded will be constructed from the remote_base_path and the provided
-        path. The local_path_prefix serves for finding the file on the local system.
-
-        Examples:
-           1) path=foo/bar.json, local_path_prefix=None -->
-                ./foo/bar.json uploaded to remote_base_path/foo/bar.json
-           2) path=/home/foo/bar.json, local_path_prefix=None -->
-                /home/foo/bar.json uploaded to remote_base_path/home/foo/bar.json
-           3) path=bar.json, local_path_prefix=/home/foo -->
-                /home/foo/bar.json uploaded to remote_base_path/bar.json
-
-        Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
-
-        :param path: Path to the local file to be uploaded, must not be absolute if ``local_path_prefix`` is specified
-        :param local_path_prefix: Prefix to be concatenated with ``path``
-        :param overwrite_existing: If the remote object already exists, overwrite it?
-        :return: A :class:`Object` instance referring to the remote object
-        """
-        log.debug(
-            f"push_file({path=}, {local_path_prefix=}, {self.remote_base_path=}, {overwrite_existing=}"
-        )
-
-        local_path = self._get_push_local_path(path, local_path_prefix)
-
-        if not os.path.isfile(local_path):
-            raise FileNotFoundError(f"Local path {local_path} does not refer to a file")
-        remote_path = self._get_push_remote_path(local_path)
-
-        remote_obj = [
-            obj
-            for obj in self.bucket.list_objects(remote_path)
-            if not self._listed_due_to_name_collision(remote_path, obj)
-        ]
-        if len(remote_obj) > 1:
-            raise RuntimeError(
-                f"Remote path {remote_path} exists and is a directory, will not overwrite it."
-                f"Consider calling push_directory or push instead."
-            )
-
-        if remote_obj and not overwrite_existing:
-            remote_obj = remote_obj[0]
-            # Skip upload if MD5 hashes match
-            if md5sum(local_path) == remote_obj.hash:
-                log.info(f"Files are identical, skipping upload")
-                return remote_obj
-            else:
-                raise RuntimeError(
-                    f"Remote object {remote_path} already exists,\n is not identical to the local file {local_path}\n "
-                    f"and overwrite_existing=False"
-                )
-
-        log.debug(f"Uploading: {local_path} --> {remote_path}")
-        remote_obj = self.bucket.upload_object(
-            local_path, remote_path, verify_hash=False
-        )
-
-        return remote_obj
+        return summary
 
     def push(
         self,
         path: str,
         local_path_prefix: Optional[str] = None,
         overwrite_existing=True,
+        force=False,
+        dryrun=False,
         path_regex: Pattern = None,
-        on_file_exists="overwrite",
-        simulate=False,
     ) -> Union[List[RemoteObjectProtocol], List[Tuple[str, str]]]:
         """
         Upload a local file or directory into the remote storage.
@@ -522,94 +479,60 @@ class RemoteStorage:
 
         Remote objects will not be overwritten if their MD5sum matches the local file.
 
-        :param simulate: If True, the pull operation is only simulated and the operations that would be performed are
-            returned
-        :param simulate: If True, push is only simulated and the operations the would be performed are returned
         :param overwrite_existing: Overwrite file if exists locally
             - True: overwrite existing files
             - False: abort if an already existing file is encountered. In case of an abort no files are pulled.
             - None: behavior is specified via on_file_exists
-        :param on_file_exists: behavior on already existing files.
-            - 'skip': skip existing files
-            - 'overwrite': overwrite existing files
-            - 'abort': abort if an already existing file is encountered. In case of an abort no files are pulled.
-            Note: on_file_exists is overwritten if a bool value is passed to overwrite_existing.
+        :param dryrun: If True simulates the pull operation and the returns local the objects that would have been pulled.
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param path_regex: If not None only files with paths matching the regex will be pushed
         :return: A list of :class:`Object` instances for all remote objects that were created or matched existing files
         """
-        # Behavior on existing file specification
-        if isinstance(overwrite_existing, bool):
-            on_file_exists = "overwrite" if overwrite_existing else "abort"
-
-        # Collect file paths
         local_path = self._get_push_local_path(path, local_path_prefix)
-        if os.path.isfile(local_path):
-            files = [local_path]
+        summary = self.collect_push_summary(path, local_path_prefix, path_regex)
 
-            if path_regex is not None and not path_regex.match(path):
-                log.warning(
-                    f"{path} does not match regular expression '{path_regex}'. Nothing is pushed."
-                )
-                return []
-        elif os.path.isdir(local_path):
-            files = []
-            for root, _, fs in os.walk(local_path):
-                files = files + [os.sep.join([root, f]) for f in fs]
-        else:
-            raise FileNotFoundError(
-                f"Local path {local_path} does not refer to a file or directory"
+        valid_files = summary["new_files"]
+        existing_eq_md5 = summary["existing_eq_md5"]
+        existing_neq_md5 = summary["existing_neq_d5"]
+        existing = existing_neq_md5 + existing_eq_md5
+
+        upload_list = valid_files
+        if overwrite_existing:
+            download_list = upload_list + existing_neq_md5
+        upload_size = sum([obj.size for obj in download_list])
+
+        if not force and len(existing) > 0:
+            log.error(
+                "Found existing files. Not pulling anything. To skip all existing files use force=True."
             )
+            files_str = "\n".join(
+                self._get_push_remote_path(local_path) for obj in existing
+            )
+            raise FileExistsError(f"Found already existing files:\n {files_str}")
 
-        # filter invalid files
-        valid_files = []
-        upload_size = 0
-        for file in files:
-            valid = True
-            remote_path = self._get_push_remote_path(file)
-            remote_obj = [
-                obj
-                for obj in self.bucket.list_objects(remote_path)
-                if not self._listed_due_to_name_collision(remote_path, obj)
-            ]
-            if len(remote_obj) > 1:
-                valid = False
-                log.info(
-                    f"Abort because {self._get_push_remote_path(file)} already exists"
-                )
-                return []
+        if dryrun:
+            log.info(
+                f"""
+                Push summary: 
+                # Remote files: {len(valid_files) + len(existing)}
+                Upload size: {upload_size} ({len(upload_list)} files)
+                Existing files with md5 hash identical to local: {len(existing_eq_md5)} 
+                Existing files with md5 hash different from local: {len(existing_neq_md5)}
+                """
+            )
+            return upload_list
 
-            if remote_obj and on_file_exists != "overwrite":
-                remote_obj = remote_obj[0]
-                # Skip upload if MD5 hashes match
-                if md5sum(local_path) == remote_obj.hash:
-                    log.info(
-                        f"File {self._get_push_remote_path(file)} identical to local, skipping upload"
-                    )
-                    valid = False
-                else:
-                    valid = False
-                    if on_file_exists == "abort":
-                        log.info(
-                            f"Abort because {self._get_push_remote_path(file)} already exists"
-                        )
-                        return []
+        if len(upload_list) == 0:
+            log.warning(f"Not pushing anything from local path: {local_path}.")
+            return []
 
-            if valid:
-                valid_files.append(file)
-                upload_size += os.path.getsize(file)
-
-        if simulate:
-            log.info(f"Simulation completed. Returning protocol")
-            return [(file, self._get_remote_path(file)) for file in valid_files]
-
-        # Upload valid files
+        # Upload selected files
         result = []
         with tqdm(total=upload_size, desc="Progress (Bytes)") as pbar:
             for file in valid_files:
                 obj = self.bucket.upload_object(
-                    file, self._get_push_remote_path(file), verify_hash=False
+                    file.name, self._get_push_remote_path(file.name), verify_hash=False
                 )
                 result.append(obj)
                 pbar.update(obj.size)
