@@ -19,10 +19,13 @@ class Provider(str, Enum):
     S3 = "s3"
 
 
-class RemoteObjectProtocol(Protocol):
+class ObjectProtocol(Protocol):
     name: str
     size: int
     hash: int
+
+
+class RemoteObjectProtocol(ObjectProtocol, Protocol):
     provider: str
 
     def download(
@@ -31,12 +34,7 @@ class RemoteObjectProtocol(Protocol):
         pass
 
 
-class LocalObject(RemoteObjectProtocol):
-    def download(
-        self, download_path, overwrite_existing=False
-    ) -> Optional["RemoteObjectProtocol"]:
-        return None
-
+class LocalObject(ObjectProtocol):
     def __init__(self, path):
         self.name = path
         self.size = os.path.getsize(path)
@@ -196,7 +194,7 @@ class RemoteStorage:
         path_regex: Pattern = None,
         convert_to_linux_path=True,
         dryrun=False,
-    ) -> List[RemoteObjectProtocol]:
+    ) -> List[ObjectProtocol]:
         r"""
         Pull either a file or a directory under the given path relative to local_base_dir.
 
@@ -205,15 +203,15 @@ class RemoteStorage:
         :param local_base_dir: Local base directory for constructing local path
             e.g passing 'local_base_dir' will download to the path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
-        :param force: If False pull will raise an error if an already existing file deviates from the remote in it's md5sum.
-        If True these files are overwritten.
+        :param force: If False, pull will raise an error if an already existing file deviates from the remote in its md5sum.
+            If True, these files are overwritten.
         :param path_regex: If not None only files with paths matching the regex will be pulled. This is useful for
             filtering files within a remote directory before pulling them.
         :param convert_to_linux_path: if True, will convert windows path to linux path (as needed by remote storage) and
             thus passing a remote path like 'data\my\path' will be converted to 'data/my/path' before pulling.
             This should only be set to False if you want to pull a remote object with '\' in its file name
             (which is discouraged).
-        :param dryrun: If True simulates the pull operation and returns the remote objects that would have been pulled.
+        :param dryrun: If True, simulates the pull operation and returns the remote objects that would have been pulled.
         :return: list of objects referring to all downloaded files
         """
 
@@ -229,12 +227,9 @@ class RemoteStorage:
         blacklisted_remote_objects = summary["blacklisted"]
 
         if not force and len(existing_neq_md5) > 0:
-            log.error(
-                "Found existing files that would have been overwritten."
-                "Set force=True to allow accsr to overwrite the files"
-            )
             raise FileExistsError(
                 f"Found {len(existing_neq_md5)} already existing files."
+                "Set force=True to allow accsr to overwrite the files"
             )
 
         download_list = new_remote_objects + existing_neq_md5
@@ -286,7 +281,7 @@ class RemoteStorage:
         remote_path: str,
         local_base_dir="",
         path_regex: Pattern = None,
-    ) -> dict[str, List[LocalObject]]:
+    ) -> dict[str, List[RemoteObjectProtocol]]:
         """
         Creates a pull summary that contains
         - list of all remote files that do not exist locally
@@ -459,7 +454,7 @@ class RemoteStorage:
         force=False,
         path_regex: Pattern = None,
         dryrun=False,
-    ) -> List[RemoteObjectProtocol]:
+    ) -> List[ObjectProtocol]:
         """
         Upload a local file or directory into the remote storage.
         Does not upload files for which the md5sum matches existing remote files.
@@ -478,10 +473,10 @@ class RemoteStorage:
 
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
         :param local_path_prefix: Prefix to be concatenated with ``path``
-        :param force: If False push will raise an error if an already existing remote file deviates from the local
-        in it's md5sum. If True these files are overwritten.
+        :param force: If False, push will raise an error if an already existing remote file deviates from the local
+            in its md5sum. If True, these files are overwritten.
         :param path_regex: If not None only files with paths matching the regex will be pushed
-        :param dryrun: If True simulates the pull operation and the returns local the objects that would have been pulled.
+        :param dryrun: If True, simulates the pull operation and the returns local the objects that would have been pulled.
         :return: A list of :class:`Object` instances for all remote objects that were created or matched existing files
         """
         local_path = self._get_push_local_path(path, local_path_prefix)
@@ -493,12 +488,9 @@ class RemoteStorage:
         existing = existing_neq_md5 + existing_eq_md5
 
         if not force and len(existing_neq_md5) > 0:
-            log.error(
-                "Found existing files that would have been overwritten."
-                "Set force=True to allow accsr to overwrite the files"
-            )
             raise FileExistsError(
                 f"Found {len(existing_neq_md5)} already existing file(s)."
+                "Set force=True to allow accsr to overwrite the files"
             )
 
         upload_list = new_files + existing_neq_md5
