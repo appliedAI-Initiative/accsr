@@ -138,7 +138,7 @@ class RemoteStorage:
         overwrite_existing=False,
     ) -> None:
         """
-        Download the remote object to the destination path. Returns True if file was downloaded, else False
+        Download the remote object to the destination path.
         """
 
         destination_path = os.path.abspath(destination_path)
@@ -192,7 +192,6 @@ class RemoteStorage:
         self,
         remote_path: str,
         local_base_dir="",
-        overwrite_existing=False,
         force=False,
         path_regex: Pattern = None,
         convert_to_linux_path=True,
@@ -201,21 +200,20 @@ class RemoteStorage:
         r"""
         Pull either a file or a directory under the given path relative to local_base_dir.
 
-        :param dryrun: If True simulates the pull operation and the returns the objects that would have been pulled.
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/some_file.json'
         :param local_base_dir: Local base directory for constructing local path
             e.g passing 'local_base_dir' will download to the path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
-        :param overwrite_existing: Overwrite file if it exists locally
-        :param force: If False will raise an error if an already existing file is encountered. If True the behavior
-        on existing files is specified via overwrite_existing
+        :param force: If False pull will raise an error if an already existing file deviates from the remote in it's md5sum.
+        If True these files are overwritten.
         :param path_regex: If not None only files with paths matching the regex will be pulled. This is useful for
             filtering files within a remote directory before pulling them.
         :param convert_to_linux_path: if True, will convert windows path to linux path (as needed by remote storage) and
             thus passing a remote path like 'data\my\path' will be converted to 'data/my/path' before pulling.
             This should only be set to False if you want to pull a remote object with '\' in its file name
             (which is discouraged).
+        :param dryrun: If True simulates the pull operation and returns the remote objects that would have been pulled.
         :return: list of objects referring to all downloaded files
         """
 
@@ -225,33 +223,32 @@ class RemoteStorage:
 
         summary = self.collect_pull_summary(remote_path, local_base_dir, path_regex)
 
-        valid_remote_objects = summary["new_files"]
+        new_remote_objects = summary["new_files"]
         existing_eq_md5 = summary["existing_eq_md5"]
         existing_neq_md5 = summary["existing_neq_md5"]
-        existing = existing_neq_md5 + existing_eq_md5
+        blacklisted_remote_objects = summary["blacklisted"]
 
-        download_list = valid_remote_objects
-        if overwrite_existing:
-            download_list = download_list + existing_neq_md5
-        download_size = sum([obj.size for obj in download_list])
-
-        if not force and len(existing) > 0:
+        if not force and len(existing_neq_md5) > 0:
             log.error(
-                "Found existing files. Not pulling anything. To skip all existing files use force=True."
+                "Found existing files that would have been overwritten."
+                "Set force=True to allow accsr to overwrite the files"
             )
-            files_str = "\n".join(
-                self._get_destination_path(obj, local_base_dir) for obj in existing
+            raise FileExistsError(
+                f"Found {len(existing_neq_md5)} already existing files."
             )
-            raise FileExistsError(f"Found already existing files:\n {files_str}")
+
+        download_list = new_remote_objects + existing_neq_md5
+        download_size = sum([obj.size for obj in download_list])
 
         if dryrun:
             log.info(
                 f"""
                 Pull summary:
                 Download size: {download_size}
-                # Files: {len(valid_remote_objects)}
-                Existing files with md5 hash identical to remote: {len(existing_eq_md5)} 
-                Existing files with md5 hash different from remote: {len(existing_neq_md5)}
+                # New Files: {len(new_remote_objects)}
+                # Existing files with md5 hash identical to remote: {len(existing_eq_md5)} 
+                # Existing files with md5 hash different from remote: {len(existing_neq_md5)}
+                # Files excluded due to path_regex: {len(blacklisted_remote_objects)}
                 """
             )
             return download_list
@@ -263,14 +260,14 @@ class RemoteStorage:
         # pull selected files
         downloaded_objects = []
         with tqdm(total=download_size, desc="Progress (Bytes)") as pbar:
-            for remote_obj in valid_remote_objects:
+            for remote_obj in new_remote_objects:
                 destination_path = self._get_destination_path(
                     remote_obj, local_base_dir
                 )
                 self._pull_object(
                     remote_obj,
                     destination_path,
-                    overwrite_existing=overwrite_existing,
+                    overwrite_existing=True,
                 )
                 downloaded_objects.append(remote_obj)
                 pbar.update(remote_obj.size)
@@ -289,7 +286,7 @@ class RemoteStorage:
         remote_path: str,
         local_base_dir="",
         path_regex: Pattern = None,
-    ) -> dict:
+    ) -> dict[str, List[LocalObject]]:
         """
         Creates a pull summary that contains
         - list of all remote files that do not exist locally
@@ -312,6 +309,7 @@ class RemoteStorage:
         valid_remote_objects = []
         existing_eq_md5 = []
         existing_neq_md5 = []
+        blacklisted = []
         for obj in remote_objects:
             valid = True
             if (obj.size == 0) or (
@@ -322,6 +320,7 @@ class RemoteStorage:
                 relative_obj_path = self._get_relative_remote_path(obj)
                 if not path_regex.match(relative_obj_path):
                     log.info(f"Skipping {relative_obj_path} due to regex {path_regex}")
+                    blacklisted.append(obj)
                     valid = False
 
             destination_path = self._get_destination_path(obj, local_base_dir)
@@ -338,6 +337,7 @@ class RemoteStorage:
             "new_files": valid_remote_objects,
             "existing_eq_md5": existing_eq_md5,
             "existing_neq_md5": existing_neq_md5,
+            "blacklisted": blacklisted,
         }
 
         return summary
@@ -390,7 +390,7 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         path_regex: Pattern = None,
-    ) -> dict:
+    ) -> dict[str, List[LocalObject]]:
         """
         Collect summary of the push operation
 
@@ -456,11 +456,10 @@ class RemoteStorage:
         self,
         path: str,
         local_path_prefix: Optional[str] = None,
-        overwrite_existing=True,
         force=False,
-        dryrun=False,
         path_regex: Pattern = None,
-    ) -> Union[List[RemoteObjectProtocol], List[Tuple[str, str]]]:
+        dryrun=False,
+    ) -> List[RemoteObjectProtocol]:
         """
         Upload a local file or directory into the remote storage.
         Does not upload files for which the md5sum matches existing remote files.
@@ -477,45 +476,39 @@ class RemoteStorage:
 
         Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
 
-        Remote objects will not be overwritten if their MD5sum matches the local file.
-
-        :param overwrite_existing: Overwrite file if exists locally
-            - True: overwrite existing files
-            - False: abort if an already existing file is encountered. In case of an abort no files are pulled.
-            - None: behavior is specified via on_file_exists
-        :param dryrun: If True simulates the pull operation and the returns local the objects that would have been pulled.
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
         :param local_path_prefix: Prefix to be concatenated with ``path``
+        :param force: If False push will raise an error if an already existing remote file deviates from the local
+        in it's md5sum. If True these files are overwritten.
         :param path_regex: If not None only files with paths matching the regex will be pushed
+        :param dryrun: If True simulates the pull operation and the returns local the objects that would have been pulled.
         :return: A list of :class:`Object` instances for all remote objects that were created or matched existing files
         """
         local_path = self._get_push_local_path(path, local_path_prefix)
         summary = self.collect_push_summary(path, local_path_prefix, path_regex)
 
-        valid_files = summary["new_files"]
+        new_files = summary["new_files"]
         existing_eq_md5 = summary["existing_eq_md5"]
         existing_neq_md5 = summary["existing_neq_d5"]
         existing = existing_neq_md5 + existing_eq_md5
 
-        upload_list = valid_files
-        if overwrite_existing:
-            download_list = upload_list + existing_neq_md5
-        upload_size = sum([obj.size for obj in download_list])
-
-        if not force and len(existing) > 0:
+        if not force and len(existing_neq_md5) > 0:
             log.error(
-                "Found existing files. Not pulling anything. To skip all existing files use force=True."
+                "Found existing files that would have been overwritten."
+                "Set force=True to allow accsr to overwrite the files"
             )
-            files_str = "\n".join(
-                self._get_push_remote_path(local_path) for obj in existing
+            raise FileExistsError(
+                f"Found {len(existing_neq_md5)} already existing file(s)."
             )
-            raise FileExistsError(f"Found already existing files:\n {files_str}")
+
+        upload_list = new_files + existing_neq_md5
+        upload_size = sum([obj.size for obj in upload_list])
 
         if dryrun:
             log.info(
                 f"""
                 Push summary: 
-                # Remote files: {len(valid_files) + len(existing)}
+                # Remote files: {len(new_files) + len(existing)}
                 Upload size: {upload_size} ({len(upload_list)} files)
                 Existing files with md5 hash identical to local: {len(existing_eq_md5)} 
                 Existing files with md5 hash different from local: {len(existing_neq_md5)}
@@ -530,7 +523,7 @@ class RemoteStorage:
         # Upload selected files
         result = []
         with tqdm(total=upload_size, desc="Progress (Bytes)") as pbar:
-            for file in valid_files:
+            for file in new_files:
                 obj = self.bucket.upload_object(
                     file.name, self._get_push_remote_path(file.name), verify_hash=False
                 )
