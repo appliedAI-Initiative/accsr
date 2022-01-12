@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Pattern, Protocol, Tuple, Union
+from typing import Dict, List, Optional, Pattern, Protocol
 
 import libcloud
 from libcloud.storage.base import Container, StorageDriver
@@ -281,7 +281,7 @@ class RemoteStorage:
         remote_path: str,
         local_base_dir="",
         path_regex: Pattern = None,
-    ) -> dict[str, List[RemoteObjectProtocol]]:
+    ) -> Dict[str, List[RemoteObjectProtocol]]:
         """
         Creates a pull summary that contains
         - list of all remote files that do not exist locally
@@ -385,7 +385,7 @@ class RemoteStorage:
         path: str,
         local_path_prefix: Optional[str] = None,
         path_regex: Pattern = None,
-    ) -> dict[str, List[LocalObject]]:
+    ) -> Dict[str, List[LocalObject]]:
         """
         Collect summary of the push operation
 
