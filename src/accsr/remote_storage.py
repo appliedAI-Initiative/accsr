@@ -284,9 +284,11 @@ class RemoteStorage:
     ) -> Dict[str, List[RemoteObjectProtocol]]:
         """
         Creates a pull summary that contains
-        - list of all remote files that do not exist locally
-        - list of all remote files that already exist locally and have the same MD5 hash as the remote file
-        - list of all remote files that already exist locally and have a different MD5 hash from the remote file
+
+            - list of all remote files that do not exist locally
+            - list of all remote files that already exist locally and have the same MD5 hash as the remote file
+            - list of all remote files that already exist locally and have a different MD5 hash from the remote file
+
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/some_file.json'
         :param local_base_dir: Local base directory for constructing local path
