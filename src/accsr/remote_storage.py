@@ -1,9 +1,10 @@
 import logging.handlers
 import os
+from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Pattern, Protocol
+from typing import Dict, List, Optional, Pattern, Protocol, Sequence, Union
 
 import libcloud
 from libcloud.storage.base import Container, StorageDriver
@@ -19,13 +20,10 @@ class Provider(str, Enum):
     S3 = "s3"
 
 
-class ObjectProtocol(Protocol):
+class RemoteObjectProtocol(Protocol):
     name: str
     size: int
     hash: int
-
-
-class RemoteObjectProtocol(ObjectProtocol, Protocol):
     provider: str
 
     def download(
@@ -34,12 +32,111 @@ class RemoteObjectProtocol(ObjectProtocol, Protocol):
         pass
 
 
-class LocalObject(ObjectProtocol):
-    def __init__(self, path):
-        self.name = path
-        self.size = os.path.getsize(path)
-        self.hash = md5sum(path)
-        self.provider = "local"
+class SyncedObject:
+    def __init__(self, local_path, remote_obj: RemoteObjectProtocol = None):
+        self.local_path = local_path
+        self.exists_locally = os.path.isfile(local_path)
+        self.local_size = os.path.getsize(local_path) if self.exists_locally else 0
+        self.local_hash = md5sum(local_path) if self.exists_locally else None
+        self.remote_obj = remote_obj
+
+    @property
+    def exists_on_target(self):
+        return self.remote_obj or self.exists_locally
+
+    @property
+    def equal_md5_hash_sum(self):
+        if self.exists_on_target:
+            return self.local_size == self.remote_obj.size
+        return False
+
+    def execute_sync(self, storage: "RemoteStorage", direction: str) -> "SyncedObject":
+        if direction == "push":
+            remote_obj = storage.bucket.upload_object(
+                self.local_path,
+                storage.get_push_remote_path(self.local_path),
+                verify_hash=False,
+            )
+            result = deepcopy(self)
+            result.remote_obj = remote_obj
+            return result
+
+        elif direction == "pull":
+            storage.pull_object(
+                self.remote_obj,
+                self.local_path,
+                overwrite_existing=True,
+            )
+            result = SyncedObject(self.local_path, remote_obj=self.remote_obj)
+            return result
+        raise ValueError(
+            f"Unknown direction {direction}, has to be either 'push' or 'pull'."
+        )
+
+
+# TODO
+def _get_total_size(objects: Sequence[ObjectProtocol]):
+    if len(objects) == 0:
+        return 0
+    return sum([obj.local_size for obj in objects])
+
+
+@dataclass
+class TransactionSummary:
+    matched_files: List[SyncedObject] = field(default_factory=list)
+    not_on_target: List[SyncedObject] = field(default_factory=list)
+    on_target_eq_md5: List[SyncedObject] = field(default_factory=list)
+    on_target_neq_md5: List[SyncedObject] = field(default_factory=list)
+    unresolvable_collisions: Dict[str, List[RemoteObjectProtocol]] = field(
+        default_factory=dict
+    )
+    skipped_files: List[SyncedObject] = field(default_factory=list)
+
+    synced_files: List[SyncedObject] = field(default_factory=dict)
+
+    @property
+    def files_to_sync(self):
+        return self.not_on_target + self.on_target_neq_md5
+
+    def size_files_to_sync(self):
+        return _get_total_size(self.files_to_sync)
+
+    @property
+    def requires_force(self):
+        return len(self.on_target_neq_md5) != 0
+
+    @property
+    def has_unresolvable_collisions(self):
+        return len(self.unresolvable_collisions) != 0
+
+    @property
+    def all_files_analyzed(self):
+        return self.skipped_files + self.matched_files
+
+    def add_entry(
+        self,
+        synced_object: Union[SyncedObject, str],
+        collides_with: List[RemoteObjectProtocol] = None,
+        matched=True,
+    ):
+        if isinstance(synced_object, str):
+            synced_object = SyncedObject(synced_object)
+        if not matched:
+            self.skipped_files.append(synced_object)
+            return
+
+        if collides_with:
+            self.unresolvable_collisions[synced_object.local_path] = collides_with
+
+        if synced_object.exists_on_target:
+            if synced_object.equal_md5_hash_sum:
+                self.on_target_eq_md5.append(synced_object)
+            else:
+                self.on_target_neq_md5.append(synced_object)
+        else:
+            self.not_on_target.append(synced_object)
+
+        self.matched_files.append(synced_object)
 
 
 @dataclass
@@ -129,12 +226,12 @@ class RemoteStorage:
         result = result.lstrip("/")
         return result
 
-    def _pull_object(
+    def pull_object(
         self,
         remote_object: RemoteObjectProtocol,
         destination_path: str,
         overwrite_existing=False,
-    ) -> None:
+    ):
         """
         Download the remote object to the destination path.
         """
@@ -233,7 +330,7 @@ class RemoteStorage:
             )
 
         download_list = new_remote_objects + existing_neq_md5
-        download_size = sum([obj.size for obj in download_list])
+        download_size = sum([obj.local_size for obj in download_list])
 
         if dryrun:
             log.info(
@@ -259,13 +356,13 @@ class RemoteStorage:
                 destination_path = self._get_destination_path(
                     remote_obj, local_base_dir
                 )
-                self._pull_object(
+                self.pull_object(
                     remote_obj,
                     destination_path,
                     overwrite_existing=True,
                 )
                 downloaded_objects.append(remote_obj)
-                pbar.update(remote_obj.size)
+                pbar.update(remote_obj.local_size)
 
         return downloaded_objects
 
@@ -309,7 +406,7 @@ class RemoteStorage:
         blacklisted = []
         for obj in remote_objects:
             valid = True
-            if (obj.size == 0) or (
+            if (obj.local_size == 0) or (
                 self._listed_due_to_name_collision(full_remote_path, obj)
             ):
                 valid = False
@@ -323,7 +420,7 @@ class RemoteStorage:
             destination_path = self._get_destination_path(obj, local_base_dir)
             if os.path.isfile(destination_path):
                 valid = False
-                if md5sum(destination_path) == obj.hash:
+                if md5sum(destination_path) == obj.local_hash:
                     existing_eq_md5.append(obj)
                 else:
                     existing_neq_md5.append(obj)
@@ -373,7 +470,7 @@ class RemoteStorage:
         else:
             return os.path.join(local_path_prefix or "", path)
 
-    def _get_push_remote_path(self, local_path: str) -> str:
+    def get_push_remote_path(self, local_path: str) -> str:
         """
         Get the full path within a remote storage bucket for pushing.
 
@@ -382,70 +479,71 @@ class RemoteStorage:
         """
         return "/".join([self.remote_base_path, local_path]).replace(os.sep, "/")
 
-    def collect_push_summary(
+    def get_push_summary(
         self,
         path: str,
         local_path_prefix: Optional[str] = None,
         path_regex: Pattern = None,
-    ) -> Dict[str, List[LocalObject]]:
+    ) -> TransactionSummary:
         """
-        Collect summary of the push operation
+        Retrieves the summary of the push operation
 
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param path_regex: If not None only files with paths matching the regex will be pushed
         :return: A list of :class:`Object` instances for all remote objects that were created or matched existing files
         """
+        summary = TransactionSummary()
+
+        def check_match(file_path):
+            if path_regex is None:
+                return True
+            if not path_regex.match(file_path):
+                log.debug(
+                    f"Skipping {file_path} since it does not match regular expression '{path_regex}'."
+                )
+                return False
+
+        # collect all paths to scan
         local_path = self._get_push_local_path(path, local_path_prefix)
         if os.path.isfile(local_path):
-            files = [local_path]
+            all_files_analyzed = [local_path]
         elif os.path.isdir(local_path):
-            files = []
+            all_files_analyzed = []
             for root, _, fs in os.walk(local_path):
-                files = files + [os.path.join(root, f) for f in fs]
+                all_files_analyzed.extend([os.path.join(root, f) for f in fs])
         else:
             raise FileNotFoundError(
                 f"Local path {local_path} does not refer to a file or directory"
             )
 
-        if path_regex is not None and not path_regex.match(path):
-            log.warning(
-                f"{path} does not match regular expression '{path_regex}'. Nothing is pushed."
-            )
-            return {"new_files": [], "existing_eq_md5": [], "existing_neq_,d5": []}
+        for file in tqdm(all_files_analyzed, desc="Scanning file: "):
+            match = check_match(file)
+            if not match:
+                summary.add_entry(file, matched=False)
+                continue
 
-        valid_files = []
-        existing_eq_md5 = []
-        existing_neq_md5 = []
-        for file in files:
-            valid = True
-            remote_path = self._get_push_remote_path(file)
-            remote_obj = [
+            collides_with = None
+            remote_path = self.get_push_remote_path(file)
+            matched_remote_obj = [
                 obj
                 for obj in self.bucket.list_objects(remote_path)
                 if not self._listed_due_to_name_collision(remote_path, obj)
             ]
-            if len(remote_obj) > 1:
-                valid = False
 
-            if remote_obj:
-                remote_obj = remote_obj[0]
-                # Skip upload if MD5 hashes match
-                if md5sum(local_path) == remote_obj.hash:
-                    valid = False
-                    existing_eq_md5.append(LocalObject(file))
-                else:
-                    valid = False
-                    existing_neq_md5.append(LocalObject(file))
+            remote_obj = None
+            # name collision of local file with remote dir
+            if len(matched_remote_obj) > 1:
+                collides_with = matched_remote_obj
 
-            if valid:
-                valid_files.append(LocalObject(file))
+            elif matched_remote_obj:
+                remote_obj = matched_remote_obj[0]
 
-        summary = {
-            "new_files": valid_files,
-            "existing_eq_md5": existing_eq_md5,
-            "existing_neq_d5": existing_neq_md5,
-        }
+            synced_obj = SyncedObject(file, remote_obj)
+            summary.add_entry(
+                synced_obj,
+                collides_with=collides_with,
+            )
 
         return summary
 
@@ -456,7 +554,7 @@ class RemoteStorage:
         force=False,
         path_regex: Pattern = None,
         dryrun=False,
-    ) -> List[ObjectProtocol]:
+    ) -> TransactionSummary:
         """
         Upload a local file or directory into the remote storage.
         Does not upload files for which the md5sum matches existing remote files.
@@ -478,53 +576,37 @@ class RemoteStorage:
         :param force: If False, push will raise an error if an already existing remote file deviates from the local
             in its md5sum. If True, these files are overwritten.
         :param path_regex: If not None only files with paths matching the regex will be pushed
-        :param dryrun: If True, simulates the pull operation and the returns local the objects that would have been pulled.
-        :return: A list of :class:`Object` instances for all remote objects that were created or matched existing files
+        :param dryrun: If True, simulates the push operation and returns the summary
+            (with pushed_files being an empty list).
+        :return: An object describing the summary of the operation.
         """
-        local_path = self._get_push_local_path(path, local_path_prefix)
-        summary = self.collect_push_summary(path, local_path_prefix, path_regex)
-
-        new_files = summary["new_files"]
-        existing_eq_md5 = summary["existing_eq_md5"]
-        existing_neq_md5 = summary["existing_neq_d5"]
-        existing = existing_neq_md5 + existing_eq_md5
-
-        if not force and len(existing_neq_md5) > 0:
-            raise FileExistsError(
-                f"Found {len(existing_neq_md5)} already existing file(s)."
-                "Set force=True to allow accsr to overwrite the files"
-            )
-
-        upload_list = new_files + existing_neq_md5
-        upload_size = sum([obj.size for obj in upload_list])
+        summary = self.get_push_summary(path, local_path_prefix, path_regex)
 
         if dryrun:
-            log.info(
-                f"""
-                Push summary: 
-                # Remote files: {len(new_files) + len(existing)}
-                Upload size: {upload_size} ({len(upload_list)} files)
-                Existing files with md5 hash identical to local: {len(existing_eq_md5)} 
-                Existing files with md5 hash different from local: {len(existing_neq_md5)}
-                """
+            log.info(f"Skipping pull because dryrun=True")
+            return summary
+
+        if summary.has_unresolvable_collisions:
+            raise FileExistsError(
+                f"Found collisions of local files with remote directories, not pushing anything. "
+                f"Affected files: {list(summary.unresolvable_collisions.keys())}. "
+                f"Suggestion: perform a dryrun and analyze the push summary."
             )
-            return upload_list
 
-        if len(upload_list) == 0:
-            log.warning(f"Not pushing anything from local path: {local_path}.")
-            return []
+        if summary.requires_force and not force:
+            raise FileExistsError(
+                f"The following files on remote would be overwritten but force=False: "
+                f"{[f.local_path for f in summary.on_target_neq_md5]}. "
+                f"Suggestion: perform a dryrun and analyze the push summary."
+            )
 
-        # Upload selected files
-        result = []
-        with tqdm(total=upload_size, desc="Progress (Bytes)") as pbar:
-            for file in new_files:
-                obj = self.bucket.upload_object(
-                    file.name, self._get_push_remote_path(file.name), verify_hash=False
-                )
-                result.append(obj)
-                pbar.update(obj.size)
+        with tqdm(total=summary.size_files_to_sync(), desc="Progress (Bytes)") as pbar:
+            for synced_object in summary.files_to_sync:
+                pushed_obj = synced_object.execute_sync(self, direction="push")
+                pbar.update(synced_object.local_size)
+                summary.synced_files.append(pushed_obj)
 
-        return result
+        return summary
 
     def delete(
         self,
