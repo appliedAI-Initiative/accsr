@@ -350,20 +350,28 @@ class RemoteStorage:
     ):
         if dryrun:
             log.info(f"Skipping {summary.sync_direction} because dryrun=True")
+            if summary.has_unresolvable_collisions:
+                log.warning(
+                    f"This transaction has unresolvable collisions and would not succeed."
+                )
+            if summary.requires_force and not force:
+                log.warning(
+                    f"This transaction requires overwriting of files and would not succeed without force=True"
+                )
             return summary
 
         if summary.has_unresolvable_collisions:
             raise FileExistsError(
-                f"Found collisions of local files with remote directories, not pushing anything. "
-                f"Affected files: {list(summary.unresolvable_collisions.keys())}. "
-                f"Suggestion: perform a dryrun and analyze the push summary."
+                f"Found name collisions files with directories, not syncing anything. "
+                f"Suggestion: perform a dryrun and analyze the summary. "
+                f"Affected names: {list(summary.unresolvable_collisions.keys())}. "
             )
 
         if summary.requires_force and not force:
             raise FileExistsError(
-                f"The following files on remote would be overwritten but force=False: "
-                f"{[f.local_path for f in summary.on_target_neq_md5]}. "
-                f"Suggestion: perform a dryrun and analyze the push summary."
+                f"Operation requires overwriting of objects but force=False"
+                f"Suggestion: perform a dryrun and analyze the summary. "
+                f"Affected names: {[obj.name for obj in summary.on_target_neq_md5]}. "
             )
 
         with tqdm(total=summary.size_files_to_sync(), desc="Progress (Bytes)") as pbar:
