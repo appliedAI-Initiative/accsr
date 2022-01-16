@@ -83,6 +83,7 @@ class SyncObject:
         self, storage: "RemoteStorage", direction: str, force=False
     ) -> "SyncObject":
         """
+        Synchronizes the local and the remote file in the given direction.
         :param storage:
         :param direction: either "push" or "pull"
         :return:
@@ -279,9 +280,9 @@ class RemoteStorage:
 
     @property
     def bucket(self):
-        return self._maybe_instantiate_bucket()
+        return self._get_or_instantiate_bucket()
 
-    def _maybe_instantiate_bucket(self):
+    def _get_or_instantiate_bucket(self):
         if self._bucket is None:
             log.info(f"Establishing connection to bucket {self.conf.bucket}")
             storage_driver_factory = libcloud.get_driver(
@@ -434,8 +435,7 @@ class RemoteStorage:
         convert_to_linux_path=True,
     ) -> TransactionSummary:
         r"""
-        Creates a pull summary that contains
-
+        Creates TransactionSummary of the specified pull operation.
 
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/some_file.json'
