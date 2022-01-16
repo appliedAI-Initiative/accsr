@@ -156,6 +156,15 @@ def _get_total_size(objects: Sequence[SyncObject], mode="local"):
 
 @dataclass
 class TransactionSummary:
+    """
+    Class representing the summary of a push or pull operation. Is mainly used for introspection before and after
+    push/pull transactions.
+
+    It is not recommended creating or manipulate instances of this class outside RemoteStorage, in particular
+    in user code. This class forms part of the public interface because instances of it are given to users for
+    introspection.
+    """
+
     matched_source_files: List[SyncObject] = field(default_factory=list)
     not_on_target: List[SyncObject] = field(default_factory=list)
     on_target_eq_md5: List[SyncObject] = field(default_factory=list)
@@ -175,10 +184,18 @@ class TransactionSummary:
             )
 
     @property
-    def files_to_sync(self):
+    def files_to_sync(self) -> List[SyncObject]:
+        """
+        Returns of files that need synchronization.
+        :return:
+        """
         return self.not_on_target + self.on_target_neq_md5
 
     def size_files_to_sync(self):
+        """
+        Returns the total size of all objects that need synchronization.
+        :return:
+        """
         if self.sync_direction not in ["push", "pull"]:
             raise RuntimeError(
                 "sync_direction has to be set to push or pull before computing sizes"
@@ -204,6 +221,13 @@ class TransactionSummary:
         collides_with: Union[List[RemoteObjectProtocol], str] = None,
         skip=False,
     ):
+        """
+        Adds a SyncObject to the summary.
+        :param synced_object: other a SyncObject or a path to a local file.
+        :param collides_with:
+        :param skip:
+        :return:
+        """
         if isinstance(synced_object, str):
             synced_object = SyncObject(synced_object)
         if skip:
@@ -348,7 +372,16 @@ class RemoteStorage:
 
     def _execute_sync_from_summary(
         self, summary: TransactionSummary, dryrun=False, force=False
-    ):
+    ) -> TransactionSummary:
+        """
+        Executes a transaction summary.
+        :param summary: The transaction summary
+        :param dryrun: if True, logs any error that would have prevented the the execution and returns the summary
+            without actually executing actually executing the sync.
+        :param force: raises an error if dryrun=False and any files would be overwritten by the sync
+        :return: Returns the input transaction summary. Note that the function potentially alters the state of the
+            input summary.
+        """
         if dryrun:
             log.info(f"Skipping {summary.sync_direction} because dryrun=True")
             if summary.has_unresolvable_collisions:
