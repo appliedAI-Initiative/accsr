@@ -1,6 +1,5 @@
 import logging.handlers
 import os
-from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -21,6 +20,11 @@ class Provider(str, Enum):
 
 
 class RemoteObjectProtocol(Protocol):
+    """
+    Protocol of classes that describe remote objects. Describes information about the remote object and functionality
+    to download the object.
+    """
+
     name: str
     size: int
     hash: int
@@ -57,10 +61,20 @@ class SyncObject:
         self.local_hash = md5sum(local_path) if self.exists_locally else None
 
     @property
-    def exists_on_target(self):
+    def exists_on_target(self) -> bool:
+        """
+        Getter of the exists_on_target property. Since the file exists at least once (locally or remotely), the property
+        is True iff the file exists on both locations
+        :return: True iff the file exists on both locations
+        """
         return self.exists_on_remote and self.exists_locally
 
     def set_local_path(self, path: Optional[str]):
+        """
+        Changes the local path of the SyncObject
+        :param path:
+        :return: None
+        """
         if path is not None:
             local_path = os.path.abspath(path)
             if os.path.isdir(local_path):
@@ -71,10 +85,18 @@ class SyncObject:
 
     @property
     def exists_on_remote(self):
+        """
+        Getter of the exists_on_remote property. Is true if the file was found on the remote.
+        :return: whether the file exists on the remote
+        """
         return self.remote_obj is not None
 
     @property
     def equal_md5_hash_sum(self):
+        """
+        Getter of the equal_md5_hash_sum property.
+        :return: True if the local and the remote file have the same md5sum
+        """
         if self.exists_on_target:
             return self.local_size == self.remote_obj.size
         return False
@@ -83,10 +105,12 @@ class SyncObject:
         self, storage: "RemoteStorage", direction: str, force=False
     ) -> "SyncObject":
         """
-        Synchronizes the local and the remote file in the given direction.
-        :param storage:
+        Synchronizes the local and the remote file in the given direction. Will raise an error if a file from the source
+        would overwrite an already existing file on the target and force=False. In this case no operations will be
+        performed on the target.
+        :param storage: the RemoteStorage object
         :param direction: either "push" or "pull"
-        :return:
+        :return: a SyncObject that represents the performed synchronization
         """
         if direction not in ["push", "pull"]:
             raise ValueError(
@@ -132,6 +156,12 @@ class SyncObject:
 
 
 def _get_total_size(objects: Sequence[SyncObject], mode="local"):
+    """
+    Computes the total size of the objects either on the local or on the remote side.
+    :param objects: The SyncObjects for which the size should be computed
+    :param mode: either 'local' or 'remote'
+    :return: the total size of the objects on the specified side
+    """
     permitted_modes = ["local", "remote"]
     if mode not in permitted_modes:
         raise ValueError(f"Unknown mode: {mode}. Has to be in {permitted_modes}.")
@@ -187,14 +217,16 @@ class TransactionSummary:
     def files_to_sync(self) -> List[SyncObject]:
         """
         Returns of files that need synchronization.
-        :return:
+        :return: list of all files that are not on the target or have different md5sums on target and remote
         """
         return self.not_on_target + self.on_target_neq_md5
 
-    def size_files_to_sync(self):
+    def size_files_to_sync(self) -> int:
         """
-        Returns the total size of all objects that need synchronization.
-        :return:
+        Computes the total size of all objects that need synchronization. Raises a RuntimeError if the sync_direction
+        property is not set to 'push' or 'pull'.
+        :return: the total size of all local objects that need synchronization if self.sync_direction='push' and
+            the size of all remote files that need synchronization if self.sync_direction='pull'
         """
         if self.sync_direction not in ["push", "pull"]:
             raise RuntimeError(
@@ -204,29 +236,41 @@ class TransactionSummary:
         return _get_total_size(self.files_to_sync, mode=mode)
 
     @property
-    def requires_force(self):
+    def requires_force(self) -> bool:
+        """
+        Getter of the requires_force property.
+        :return: True iff a failure of the transaction can only be prevented by setting force=True.
+        """
         return len(self.on_target_neq_md5) != 0
 
     @property
-    def has_unresolvable_collisions(self):
+    def has_unresolvable_collisions(self) -> bool:
+        """
+        Getter of the requires_force property.
+        :return: True iff there exists a collision that cannot be resolved.
+        """
         return len(self.unresolvable_collisions) != 0
 
     @property
-    def all_files_analyzed(self):
+    def all_files_analyzed(self) -> List[SyncObject]:
+        """
+        Getter of the all_files_analyzed property.
+        :return: list of all analysed source files
+        """
         return self.skipped_source_files + self.matched_source_files
 
     def add_entry(
         self,
         synced_object: Union[SyncObject, str],
-        collides_with: Union[List[RemoteObjectProtocol], str] = None,
-        skip=False,
+        collides_with: Optional[Union[List[RemoteObjectProtocol], str]] = None,
+        skip: bool = False,
     ):
         """
         Adds a SyncObject to the summary.
-        :param synced_object: other a SyncObject or a path to a local file.
-        :param collides_with:
-        :param skip:
-        :return:
+        :param synced_object: either a SyncObject or a path to a local file.
+        :param collides_with: specification of unresolvable collisions for the given sync object
+        :param skip: if True, the object is marked to be skipped
+        :return: None
         """
         if isinstance(synced_object, str):
             synced_object = SyncObject(synced_object)
@@ -248,6 +292,11 @@ class TransactionSummary:
 
 @dataclass
 class RemoteStorageConfig:
+    """
+    Class that represents a remote storage configuration. Contains all necessary information to establish a connection
+    to the remote storage and the base path on the remote.
+    """
+
     provider: str
     key: str
     bucket: str
@@ -261,7 +310,6 @@ class RemoteStorageConfig:
 class RemoteStorage:
     """
     Wrapper around lib-cloud for accessing remote storage services.
-
     :param conf:
     """
 
@@ -283,18 +331,35 @@ class RemoteStorage:
         }
 
     @property
-    def conf(self):
+    def conf(self) -> RemoteStorageConfig:
+        """
+        Getter method of the configuration
+        :return: the config
+        """
         return self._conf
 
     @property
-    def provider(self):
+    def provider(self) -> str:
+        """
+        Getter method of the provider property
+        :return: the provider
+        """
         return self._provider
 
     @property
-    def remote_base_path(self):
+    def remote_base_path(self) -> str:
+        """
+        Getter method of the remote_base_path property
+        :return: the remote base path
+        """
         return self._remote_base_path
 
-    def set_remote_base_path(self, path: Optional[str]):
+    def set_remote_base_path(self, path: Optional[str]) -> str:
+        """
+        Changes the base path of the remote config.
+            :param path:
+            :return: None
+        """
         if path is None:
             path = ""
         else:
@@ -303,10 +368,18 @@ class RemoteStorage:
         self._remote_base_path = path.strip()
 
     @property
-    def bucket(self):
+    def bucket(self) -> Container:
+        """
+        Getter of the bucket property
+        :return:
+        """
         return self._get_or_instantiate_bucket()
 
-    def _get_or_instantiate_bucket(self):
+    def _get_or_instantiate_bucket(self) -> Container:
+        """
+        Return the Bucket Object. If the bucket hasn't been instantiated so far, the method creates a new Bucket object.
+        :return: the buck
+        """
         if self._bucket is None:
             log.info(f"Establishing connection to bucket {self.conf.bucket}")
             storage_driver_factory = libcloud.get_driver(
@@ -317,14 +390,14 @@ class RemoteStorage:
         return self._bucket
 
     @staticmethod
-    def _get_remote_path(remote_obj: RemoteObjectProtocol):
+    def _get_remote_path(remote_obj: RemoteObjectProtocol) -> str:
         """
         Returns the full path to the remote object. The resulting path never starts with "/" as it can cause problems
         with some backends (e.g. google cloud storage).
         """
         return remote_obj.name.lstrip("/")
 
-    def _get_relative_remote_path(self, remote_obj: RemoteObjectProtocol):
+    def _get_relative_remote_path(self, remote_obj: RemoteObjectProtocol) -> str:
         """
         Returns the path to the remote object relative to configured base dir (as expected by pull for a single file)
         """
@@ -333,7 +406,7 @@ class RemoteStorage:
         result = result.lstrip("/")
         return result
 
-    def _full_remote_path(self, remote_path: str):
+    def _full_remote_path(self, remote_path: str) -> str:
         """
         :param remote_path: remote_path on storage bucket relative to the configured remote base remote_path.
             e.g. 'data/some_file.json'
@@ -347,7 +420,7 @@ class RemoteStorage:
     @staticmethod
     def _listed_due_to_name_collision(
         full_remote_path: str, remote_object: RemoteObjectProtocol
-    ):
+    ) -> bool:
         """
         Checks whether a remote object was falsely listed because its name starts with the same
         characters as full_remote_path.
@@ -371,7 +444,7 @@ class RemoteStorage:
         return not (is_in_selected_dir or is_selected_file)
 
     def _execute_sync_from_summary(
-        self, summary: TransactionSummary, dryrun=False, force=False
+        self, summary: TransactionSummary, dryrun: bool = False, force: bool = False
     ) -> TransactionSummary:
         """
         Executes a transaction summary.
@@ -453,7 +526,9 @@ class RemoteStorage:
         )
         return self._execute_sync_from_summary(summary, dryrun=dryrun, force=force)
 
-    def _get_destination_path(self, obj: RemoteObjectProtocol, local_base_dir):
+    def _get_destination_path(
+        self, obj: RemoteObjectProtocol, local_base_dir: str
+    ) -> str:
         """
         Return the destination path of the given object
         """
@@ -542,7 +617,7 @@ class RemoteStorage:
 
         :param path:
         :param local_path_prefix:
-        :return:
+        :return: the full local path of the file
         """
         # Parameter validation
         if local_path_prefix and Path(path).is_absolute():
@@ -559,8 +634,8 @@ class RemoteStorage:
         """
         Get the full path within a remote storage bucket for pushing.
 
-        :param local_path:
-        :return:
+        :param local_path: the local path to the file
+        :return: the remote path that corresponds to the local path
         """
         return "/".join([self.remote_base_path, local_path]).replace(os.sep, "/")
 
@@ -568,7 +643,7 @@ class RemoteStorage:
         self,
         path: str,
         local_path_prefix: Optional[str] = None,
-        path_regex: Pattern = None,
+        path_regex: Optional[Pattern] = None,
     ) -> TransactionSummary:
         """
         Retrieves the summary of the push-transaction plan, before it has been executed.
@@ -631,9 +706,9 @@ class RemoteStorage:
         self,
         path: str,
         local_path_prefix: Optional[str] = None,
-        force=False,
+        force: bool = False,
         path_regex: Pattern = None,
-        dryrun=False,
+        dryrun: bool = False,
     ) -> TransactionSummary:
         """
         Upload a local file or directory into the remote storage.
@@ -702,7 +777,7 @@ class RemoteStorage:
             deleted_objects.append(remote_obj)
         return deleted_objects
 
-    def list_objects(self, remote_path) -> List[RemoteObjectProtocol]:
+    def list_objects(self, remote_path: str) -> List[RemoteObjectProtocol]:
         """
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
         :return: list of remote objects under the remote path (multiple entries if the remote path is a directory)
