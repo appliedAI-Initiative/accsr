@@ -48,7 +48,7 @@ class SyncObject:
 
     def __init__(self, local_path: str = None, remote_obj: RemoteObjectProtocol = None):
         self.exists_locally = False
-        self.local_path = self.set_local_path(local_path)
+        self.set_local_path(local_path)
 
         if self.local_path is None and remote_obj is None:
             raise ValueError(
@@ -81,6 +81,7 @@ class SyncObject:
                 raise ValueError(
                     f"local_path needs to point to file but pointed to a directory: {local_path}"
                 )
+            self.local_path = local_path
             self.exists_locally = os.path.isfile(local_path)
 
     @property
@@ -110,6 +111,8 @@ class SyncObject:
         performed on the target.
         :param storage: the RemoteStorage object
         :param direction: either "push" or "pull"
+        :param force: if True, all already exsting files on the target with a different md5sum than the source files
+            will be overwritten. Otherwise the method will raise on erro without changing the target file
         :return: a SyncObject that represents the performed synchronization
         """
         if direction not in ["push", "pull"]:
