@@ -102,61 +102,6 @@ class SyncObject:
             return self.local_size == self.remote_obj.size
         return False
 
-    def execute_sync(
-        self, storage: "RemoteStorage", direction: str, force=False
-    ) -> "SyncObject":
-        """
-        Synchronizes the local and the remote file in the given direction. Will raise an error if a file from the source
-        would overwrite an already existing file on the target and force=False. In this case no operations will be
-        performed on the target.
-        :param storage: the RemoteStorage object
-        :param direction: either "push" or "pull"
-        :param force: if True, all already exsting files on the target with a different md5sum than the source files
-            will be overwritten. Otherwise the method will raise on erro without changing the target file
-        :return: a SyncObject that represents the performed synchronization
-        """
-        if direction not in ["push", "pull"]:
-            raise ValueError(
-                f"Unknown direction {direction}, has to be either 'push' or 'pull'."
-            )
-        if self.equal_md5_hash_sum:
-            log.debug(
-                f"Skipping {direction} of {self.name} because of coinciding hash sums"
-            )
-            return self
-
-        if self.exists_on_target and not force:
-            raise ValueError(
-                f"Cannot perform {direction} because {self.name} already exists and force is False"
-            )
-
-        if direction == "push":
-            if not self.exists_locally:
-                raise FileNotFoundError(
-                    f"Cannot push non-existing file: {self.local_path}"
-                )
-            remote_obj = storage.bucket.upload_object(
-                self.local_path,
-                storage.get_push_remote_path(self.local_path),
-                verify_hash=False,
-            )
-            return SyncObject(self.local_path, remote_obj)
-
-        elif direction == "pull":
-            if None in [self.remote_obj, self.local_path]:
-                raise RuntimeError(
-                    f"Cannot pull without remote object and local path. Affects: {self.name}"
-                )
-            if os.path.isdir(self.local_path):
-                raise FileExistsError(
-                    f"Cannot pull file to a path which is an existing directory: {self.local_path}"
-                )
-
-            log.debug(f"Fetching {self.remote_obj.name} from {storage.bucket.name}")
-            os.makedirs(os.path.dirname(self.local_path), exist_ok=True)
-            self.remote_obj.download(self.local_path, overwrite_existing=force)
-            return SyncObject(self.local_path, self.remote_obj)
-
 
 def _get_total_size(objects: Sequence[SyncObject], mode="local"):
     """
@@ -364,6 +309,63 @@ class RemoteStorage:
     def bucket(self) -> Container:
         return self._get_or_instantiate_bucket()
 
+    def execute_sync(
+        self, sync_object: SyncObject, direction: str, force=False
+    ) -> SyncObject:
+        """
+        Synchronizes the local and the remote file in the given direction. Will raise an error if a file from the source
+        would overwrite an already existing file on the target and force=False. In this case, no operations will be
+        performed on the target.
+
+        :param sync_object: instance of SyncObject that will be used as basis for synchronization. Usually
+            created from a get_*_summary method.
+        :param direction: either "push" or "pull"
+        :param force: if True, all already existing files on the target (with a different md5sum than the source files)
+            will be overwritten.
+        :return: a SyncObject that represents the status of remote and target after the synchronization
+        """
+        if direction not in ["push", "pull"]:
+            raise ValueError(
+                f"Unknown direction {direction}, has to be either 'push' or 'pull'."
+            )
+        if sync_object.equal_md5_hash_sum:
+            log.debug(
+                f"Skipping {direction} of {sync_object.name} because of coinciding hash sums"
+            )
+            return sync_object
+
+        if sync_object.exists_on_target and not force:
+            raise ValueError(
+                f"Cannot perform {direction} because {sync_object.name} already exists and force is False"
+            )
+
+        if direction == "push":
+            if not sync_object.exists_locally:
+                raise FileNotFoundError(
+                    f"Cannot push non-existing file: {sync_object.local_path}"
+                )
+            remote_obj = self.bucket.upload_object(
+                sync_object.local_path,
+                self.get_push_remote_path(sync_object.local_path),
+                verify_hash=False,
+            )
+            return SyncObject(sync_object.local_path, remote_obj)
+
+        elif direction == "pull":
+            if None in [sync_object.remote_obj, sync_object.local_path]:
+                raise RuntimeError(
+                    f"Cannot pull without remote object and local path. Affects: {sync_object.name}"
+                )
+            if os.path.isdir(sync_object.local_path):
+                raise FileExistsError(
+                    f"Cannot pull file to a path which is an existing directory: {sync_object.local_path}"
+                )
+
+            log.debug(f"Fetching {sync_object.remote_obj.name} from {self.bucket.name}")
+            os.makedirs(os.path.dirname(sync_object.local_path), exist_ok=True)
+            sync_object.remote_obj.download(sync_object.local_path, overwrite_existing=force)
+            return SyncObject(sync_object.local_path, sync_object.remote_obj)
+
     def _get_or_instantiate_bucket(self) -> Container:
         """
         Return the Bucket Object. If the bucket hasn't been instantiated so far, the method creates a new Bucket object.
@@ -471,8 +473,8 @@ class RemoteStorage:
 
         with tqdm(total=summary.size_files_to_sync(), desc="Progress (Bytes)") as pbar:
             for synced_object in summary.files_to_sync:
-                sync_obj = synced_object.execute_sync(
-                    self, direction=summary.sync_direction, force=force
+                sync_obj = self.execute_sync(synced_object,
+                                             direction=summary.sync_direction, force=force
                 )
                 pbar.update(synced_object.local_size)
                 summary.synced_files.append(sync_obj)
