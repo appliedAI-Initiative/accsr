@@ -335,33 +335,23 @@ class RemoteStorage:
 
     @property
     def conf(self) -> RemoteStorageConfig:
-        """
-        Getter method of the configuration
-        :return: the config
-        """
         return self._conf
 
     @property
     def provider(self) -> str:
-        """
-        Getter method of the provider property
-        :return: the provider
-        """
         return self._provider
 
     @property
     def remote_base_path(self) -> str:
-        """
-        Getter method of the remote_base_path property
-        :return: the remote base path
-        """
         return self._remote_base_path
 
-    def set_remote_base_path(self, path: Optional[str]) -> str:
+    def set_remote_base_path(self, path: Optional[str]):
         """
-        Changes the base path of the remote config.
-            :param path:
-            :return: None
+        Changes the base path in the remote storage
+        (overriding the base path extracted from RemoteStorageConfig during instantiation).
+        Pull and push operations will only affect files within the remote base path.
+
+        :param path: a path with linux-like separators
         """
         if path is None:
             path = ""
@@ -372,16 +362,11 @@ class RemoteStorage:
 
     @property
     def bucket(self) -> Container:
-        """
-        Getter of the bucket property
-        :return:
-        """
         return self._get_or_instantiate_bucket()
 
     def _get_or_instantiate_bucket(self) -> Container:
         """
         Return the Bucket Object. If the bucket hasn't been instantiated so far, the method creates a new Bucket object.
-        :return: the buck
         """
         if self._bucket is None:
             log.info(f"Establishing connection to bucket {self.conf.bucket}")
