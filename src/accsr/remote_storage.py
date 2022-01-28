@@ -46,8 +46,14 @@ class SyncObject:
     introspection.
     """
 
-    def __init__(self, local_path: str = None, remote_obj: RemoteObjectProtocol = None):
+    def __init__(
+        self,
+        local_path: str = None,
+        remote_obj: RemoteObjectProtocol = None,
+        remote_path: str = None,
+    ):
         self.exists_locally = False
+        self.local_path = None
         self.set_local_path(local_path)
 
         if self.local_path is None and remote_obj is None:
@@ -56,9 +62,25 @@ class SyncObject:
             )
 
         self.remote_obj = remote_obj
-        self.name = remote_obj.name if remote_obj is not None else local_path
+
+        if remote_path is not None:
+            if remote_obj is not None and remote_obj.name != remote_path:
+                raise ValueError(
+                    f"Passed both remote_path and remote_obj but the paths don't agree: "
+                    f"{remote_path} != {remote_obj.name}"
+                )
+            self.remote_path = remote_path
+        else:
+            if remote_obj is None:
+                raise ValueError(f"Either remote_path or remote_obj should be not None")
+            self.remote_path = remote_obj.name
+
         self.local_size = os.path.getsize(local_path) if self.exists_locally else 0
         self.local_hash = md5sum(local_path) if self.exists_locally else None
+
+    @property
+    def name(self):
+        return self.remote_path
 
     @property
     def exists_on_target(self) -> bool:
@@ -152,7 +174,7 @@ class TransactionSummary:
     )
     skipped_source_files: List[SyncObject] = field(default_factory=list)
 
-    synced_files: List[SyncObject] = field(default_factory=dict)
+    synced_files: List[SyncObject] = field(default_factory=list)
     sync_direction: Optional[str] = None
 
     def __post_init__(self):
@@ -346,7 +368,7 @@ class RemoteStorage:
                 )
             remote_obj = self.bucket.upload_object(
                 sync_object.local_path,
-                self.get_push_remote_path(sync_object.local_path),
+                sync_object.remote_path,
                 verify_hash=False,
             )
             return SyncObject(sync_object.local_path, remote_obj)
@@ -363,7 +385,9 @@ class RemoteStorage:
 
             log.debug(f"Fetching {sync_object.remote_obj.name} from {self.bucket.name}")
             os.makedirs(os.path.dirname(sync_object.local_path), exist_ok=True)
-            sync_object.remote_obj.download(sync_object.local_path, overwrite_existing=force)
+            sync_object.remote_obj.download(
+                sync_object.local_path, overwrite_existing=force
+            )
             return SyncObject(sync_object.local_path, sync_object.remote_obj)
 
     def _get_or_instantiate_bucket(self) -> Container:
@@ -439,8 +463,8 @@ class RemoteStorage:
         """
         Executes a transaction summary.
         :param summary: The transaction summary
-        :param dryrun: if True, logs any error that would have prevented the the execution and returns the summary
-            without actually executing actually executing the sync.
+        :param dryrun: if True, logs any error that would have prevented the execution and returns the summary
+            without actually executing the sync.
         :param force: raises an error if dryrun=False and any files would be overwritten by the sync
         :return: Returns the input transaction summary. Note that the function potentially alters the state of the
             input summary.
@@ -473,8 +497,8 @@ class RemoteStorage:
 
         with tqdm(total=summary.size_files_to_sync(), desc="Progress (Bytes)") as pbar:
             for synced_object in summary.files_to_sync:
-                sync_obj = self.execute_sync(synced_object,
-                                             direction=summary.sync_direction, force=force
+                sync_obj = self.execute_sync(
+                    synced_object, direction=summary.sync_direction, force=force
                 )
                 pbar.update(synced_object.local_size)
                 summary.synced_files.append(sync_obj)
@@ -514,6 +538,8 @@ class RemoteStorage:
             path_regex,
             convert_to_linux_path=convert_to_linux_path,
         )
+        if len(summary.all_files_analyzed) == 0:
+            log.warning(f"No files found in remote storage under path: {remote_path}")
         return self._execute_sync_from_summary(summary, dryrun=dryrun, force=force)
 
     def _get_destination_path(
@@ -537,8 +563,8 @@ class RemoteStorage:
 
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/some_file.json'
-        :param local_base_dir: Local base directory for constructing local path
-            e.g passing 'local_base_dir' will download to the path
+        :param local_base_dir: Local base directory for constructing local path.
+            Example: passing 'local_base_dir' will download to the path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
         :param path_regex: If not None only files with paths matching the regex will be pulled. This is useful for
             filtering files within a remote directory before pulling them.
@@ -660,7 +686,7 @@ class RemoteStorage:
             )
 
         for file in tqdm(all_files_analyzed, desc="Scanning file: "):
-            skip = True
+            skip = False
             collides_with = None
             remote_obj = None
             if path_regex is not None and not path_regex.match(file):
@@ -683,7 +709,7 @@ class RemoteStorage:
             elif matched_remote_obj:
                 remote_obj = matched_remote_obj[0]
 
-            synced_obj = SyncObject(file, remote_obj)
+            synced_obj = SyncObject(file, remote_obj, remote_path=remote_path)
             summary.add_entry(
                 synced_obj,
                 collides_with=collides_with,

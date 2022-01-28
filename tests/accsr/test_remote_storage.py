@@ -87,10 +87,10 @@ def test_delete_dir(storage):
     indirect=["test_filename"],
 )
 def test_push_file_empty_base_path(storage, test_filename):
-    remote_objects = storage.push(test_filename)
-    assert len(remote_objects) == 1
+    push_summary = storage.push(test_filename)
+    assert len(push_summary.synced_files) == 1
     # we need lstrip because s3 paths (and names) start with "/" while google storage paths start without it...
-    assert remote_objects[0].name.lstrip("/") == test_filename
+    assert push_summary.synced_files[0].name.lstrip("/") == test_filename
 
 
 @pytest.mark.parametrize(
@@ -101,9 +101,11 @@ def test_push_file_empty_base_path(storage, test_filename):
 def test_push_file_nonempty_base_path(storage, test_filename):
     base_path = "base_path"
     storage.set_remote_base_path(base_path)
-    remote_objects = storage.push(test_filename)
-    assert len(remote_objects) == 1
-    assert remote_objects[0].name.lstrip("/") == f"{base_path}/{test_filename}"
+    push_summary = storage.push(test_filename)
+    assert len(push_summary.synced_files) == 1
+    assert (
+        push_summary.synced_files[0].name.lstrip("/") == f"{base_path}/{test_filename}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -112,8 +114,8 @@ def test_push_file_nonempty_base_path(storage, test_filename):
     indirect=["test_dirname"],
 )
 def test_push_directory(storage, test_dirname):
-    remote_objects = storage.push(test_dirname)
-    assert len(remote_objects) == 2
+    push_summary = storage.push(test_dirname)
+    assert len(push_summary.synced_files) == 2
     assert len(storage.list_objects(test_dirname)) == 2
 
 
@@ -136,8 +138,8 @@ def test_pull_file(storage, test_filename, tmpdir):
     local_base_dir = tmpdir.mkdir("remote_storage")
     storage.pull(test_filename, local_base_dir=local_base_dir)
     assert os.path.isfile(os.path.join(local_base_dir, test_filename))
-    pulled_files = storage.pull(test_filename, force=False)
-    assert len(pulled_files) == 0
+    pull_summary = storage.pull(test_filename, force=False)
+    assert len(pull_summary.synced_files) == 0
 
 
 @pytest.mark.parametrize(
@@ -165,8 +167,8 @@ def test_pull_dir(storage, test_dirname, tmpdir):
     storage.pull(test_dirname, local_base_dir=local_base_dir)
     assert os.path.isdir(os.path.join(local_base_dir, test_dirname))
     assert len(os.listdir(os.path.join(local_base_dir, test_dirname))) == 2
-    pulled_files = storage.pull(test_dirname, force=False)
-    assert len(pulled_files) == 0
+    pull_summary = storage.pull(test_dirname, force=False)
+    assert len(pull_summary.synced_files) == 0
 
 
 @pytest.mark.parametrize(
@@ -174,9 +176,9 @@ def test_pull_dir(storage, test_dirname, tmpdir):
 )
 def test_pull_non_existing(storage, file_or_dir_name, caplog):
     with caplog.at_level(logging.WARNING):
-        pulled_files = storage.pull(file_or_dir_name)
-    assert len(pulled_files) == 0
-    assert "Not pulling anything from remote path:" in caplog.text
+        pull_summary = storage.pull(file_or_dir_name)
+    assert len(pull_summary.synced_files) == 0
+    assert "No files found in remote storage under path:" in caplog.text
 
 
 def test_name_collisions_pulling_properly(setup_name_collision, storage, tmpdir):
