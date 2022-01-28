@@ -100,7 +100,7 @@ class SyncObject:
         if path is not None:
             local_path = os.path.abspath(path)
             if os.path.isdir(local_path):
-                raise ValueError(
+                raise FileExistsError(
                     f"local_path needs to point to file but pointed to a directory: {local_path}"
                 )
             self.local_path = local_path
@@ -187,6 +187,7 @@ class TransactionSummary:
     def files_to_sync(self) -> List[SyncObject]:
         """
         Returns of files that need synchronization.
+
         :return: list of all files that are not on the target or have different md5sums on target and remote
         """
         return self.not_on_target + self.on_target_neq_md5
@@ -195,6 +196,7 @@ class TransactionSummary:
         """
         Computes the total size of all objects that need synchronization. Raises a RuntimeError if the sync_direction
         property is not set to 'push' or 'pull'.
+
         :return: the total size of all local objects that need synchronization if self.sync_direction='push' and
             the size of all remote files that need synchronization if self.sync_direction='pull'
         """

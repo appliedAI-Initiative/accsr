@@ -152,7 +152,7 @@ def test_pull_file_to_existing_dir_path(storage, test_filename, tmpdir):
     local_base_dir.mkdir(test_filename)
     with pytest.raises(
         FileExistsError,
-        match="Cannot pull file to a path which is an existing directory:",
+        match=r".*directory:.*",
     ):
         storage.pull(test_filename, local_base_dir=local_base_dir)
 
