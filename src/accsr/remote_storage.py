@@ -603,7 +603,7 @@ class RemoteStorage:
                     log.debug(f"Skipping {relative_obj_path} due to regex {path_regex}")
                     skip = True
 
-            else:
+            if not skip:
                 local_path = self._get_destination_path(obj, local_base_dir)
                 if os.path.isdir(local_path):
                     collides_with = local_path
