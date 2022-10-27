@@ -498,12 +498,12 @@ class RemoteStorage:
             )
 
         with tqdm(total=summary.size_files_to_sync(), desc="Progress (Bytes)") as pbar:
-            for synced_object in summary.files_to_sync:
-                sync_obj = self.execute_sync(
-                    synced_object, direction=summary.sync_direction, force=force
+            for sync_obj in summary.files_to_sync:
+                synced_obj = self.execute_sync(
+                    sync_obj, direction=summary.sync_direction, force=force
                 )
-                pbar.update(synced_object.local_size)
-                summary.synced_files.append(sync_obj)
+                pbar.update(synced_obj.local_size)
+                summary.synced_files.append(synced_obj)
         return summary
 
     def pull(
