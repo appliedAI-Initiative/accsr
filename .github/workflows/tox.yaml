@@ -26,8 +26,8 @@ jobs:
         - "9000:9000"
         - "9001:9001"
         env:
-          MINIO_ROOT_USER: admin-admin-admin
-          MINIO_ROOT_PASSWORD: admin-admin-admin
+          MINIO_ROOT_USER: minio-root-user
+          MINIO_ROOT_PASSWORD: minio-root-password
 
     steps:
       # pandoc needed for docu, see https://nbsphinx.readthedocs.io/en/0.7.1/installation.html?highlight=pandoc#pandoc
