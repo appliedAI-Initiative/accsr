@@ -2,11 +2,16 @@ import logging.handlers
 import os
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import Dict, List, Optional, Pattern, Protocol, Sequence, Union
 
 import libcloud
 from libcloud.storage.base import Container, StorageDriver
+from libcloud.storage.types import (
+    ContainerAlreadyExistsError,
+    InvalidContainerNameError,
+)
 from tqdm import tqdm
 
 from accsr.files import md5sum
@@ -265,8 +270,8 @@ class TransactionSummary:
 @dataclass
 class RemoteStorageConfig:
     """
-    Class that represents a remote storage configuration. Contains all necessary information to establish a connection
-    to the remote storage and the base path on the remote.
+    Contains all necessary information to establish a connection
+    to a bucket within the remote storage, and the base path on the remote.
     """
 
     provider: str
@@ -277,6 +282,7 @@ class RemoteStorageConfig:
     host: str = None
     port: int = None
     base_path: str = ""
+    secure: bool = True
 
 
 class RemoteStorage:
@@ -297,10 +303,24 @@ class RemoteStorage:
             "region": self.conf.region,
             "host": self.conf.host,
             "port": self.conf.port,
+            "secure": self.conf.secure,
         }
         self.driver_kwargs = {
             k: v for k, v in possible_driver_kwargs.items() if v is not None
         }
+
+    def create_bucket(self, exist_ok: bool = True):
+        try:
+            log.info(
+                f"Creating bucket {self.conf.bucket} from configuration {self.conf}."
+            )
+            self.driver.create_container(container_name=self.conf.bucket)
+        except (ContainerAlreadyExistsError, InvalidContainerNameError):
+            if not exist_ok:
+                raise
+            log.info(
+                f"Bucket {self.conf.bucket} already exists (or the name was invalid)."
+            )
 
     @property
     def conf(self) -> RemoteStorageConfig:
@@ -329,9 +349,17 @@ class RemoteStorage:
             path = path.strip().lstrip("/")
         self._remote_base_path = path.strip()
 
-    @property
+    @cached_property
     def bucket(self) -> Container:
-        return self._get_or_instantiate_bucket()
+        log.info(f"Establishing connection to bucket {self.conf.bucket}")
+        return self.driver.get_container(self.conf.bucket)
+
+    @cached_property
+    def driver(self) -> StorageDriver:
+        storage_driver_factory = libcloud.get_driver(
+            libcloud.DriverType.STORAGE, self.provider
+        )
+        return storage_driver_factory(**self.driver_kwargs)
 
     def execute_sync(
         self, sync_object: SyncObject, direction: str, force=False
@@ -391,19 +419,6 @@ class RemoteStorage:
                 sync_object.local_path, overwrite_existing=force
             )
             return SyncObject(sync_object.local_path, sync_object.remote_obj)
-
-    def _get_or_instantiate_bucket(self) -> Container:
-        """
-        Return the Bucket Object. If the bucket hasn't been instantiated so far, the method creates a new Bucket object.
-        """
-        if self._bucket is None:
-            log.info(f"Establishing connection to bucket {self.conf.bucket}")
-            storage_driver_factory = libcloud.get_driver(
-                libcloud.DriverType.STORAGE, self.provider
-            )
-            driver: StorageDriver = storage_driver_factory(**self.driver_kwargs)
-            self._bucket: Container = driver.get_container(self.conf.bucket)
-        return self._bucket
 
     @staticmethod
     def _get_remote_path(remote_obj: RemoteObjectProtocol) -> str:
