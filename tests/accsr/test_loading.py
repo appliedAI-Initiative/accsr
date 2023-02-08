@@ -33,8 +33,10 @@ def test_open_file_in_tar_content_correct(
         actual_content = buffer_reader.read()
     with open(os.path.join(test_resources, expected_content), "rb") as file:
         expected_content = file.read()
+    # Windows...
+    # expected_content = expected_content.replace(br"\r\n", br"\n")
 
-    assert expected_content == actual_content
+    assert str(expected_content) == str(actual_content)
 
 
 @mark.parametrize(

@@ -1,9 +1,12 @@
 version: '3'
+
 services:
   remote-storage:
     image: bitnami/minio:latest
     ports:
-    - "9000"
+    - "9000:9000"
+    - "9001:9001"
     environment:
-      MINIO_ACCESS_KEY: minio
-      MINIO_SECRET_KEY: minio123
+      MINIO_ROOT_USER: minio-root-user
+      MINIO_ROOT_PASSWORD: minio-root-password
+      MINIO_DEFAULT_BUCKETS: accsr-integration-tests

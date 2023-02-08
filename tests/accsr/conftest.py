@@ -1,15 +1,11 @@
+import logging
 import os
 from typing import Tuple
 from urllib.parse import urljoin
 
 import pytest
 import requests
-from libcloud.storage.providers import get_driver
-from libcloud.storage.types import (
-    ContainerAlreadyExistsError,
-    InvalidContainerNameError,
-)
-from pytest_docker.plugin import get_docker_services
+from pytest_docker.plugin import Services, get_docker_services
 from requests.exceptions import ConnectionError
 
 from accsr.remote_storage import RemoteStorage, RemoteStorageConfig
@@ -31,14 +27,26 @@ def running_on_ci() -> bool:
 
 @pytest.fixture(scope="session")
 def docker_services(
-    docker_compose_file, docker_compose_project_name, docker_cleanup, running_on_ci
+    docker_compose_command,
+    docker_compose_file,
+    docker_compose_project_name,
+    docker_setup,
+    docker_cleanup,
+    running_on_ci,
 ):
     """This overwrites pytest-docker's docker_services fixture to avoid starting containers on CI"""
     if running_on_ci:
         yield
     else:
+        logging.info(
+            f"Starting minio inside a docker container for remote storage tests"
+        )
         with get_docker_services(
-            docker_compose_file, docker_compose_project_name, docker_cleanup
+            docker_compose_command,
+            docker_compose_file,
+            docker_compose_project_name,
+            docker_setup,
+            docker_cleanup,
         ) as docker_service:
             yield docker_service
 
@@ -50,15 +58,36 @@ def docker_compose_file(pytestconfig):
     )
 
 
+def port_for_windows_fix(
+    docker_services: Services, service: str, container_port: int
+) -> int:
+    """This is a workaround for the port_for function not working on windows"""
+    output = docker_services._docker_compose.execute(
+        "port %s %d" % (service, container_port)
+    )
+    endpoint = output.strip().decode("utf-8")
+    # This handles messy output that might contain warnings or other text
+    endpoint_parts = endpoint.split("\r\n")
+    if len(endpoint_parts) > 1:
+        endpoint = endpoint_parts[0]
+    # Usually, the IP address here is 0.0.0.0, so we don't use it.
+    match = int(endpoint.split(":", 1)[1])
+    return match
+
+
 @pytest.fixture(scope="session")
 def remote_storage_server(running_on_ci, docker_ip, docker_services) -> Tuple[str, int]:
     """Starts minio container and makes sure it is reachable.
     The containers will not be created on CI."""
-    # Skips starting the container if we running on Gitlab CI or Github Actions
+    # Skips starting the container if running in CI
     if running_on_ci:
         return "remote-storage", 9000
     # `port_for` takes a container port and returns the corresponding host port
-    port = docker_services.port_for("remote-storage", 9000)
+    if os.name == "nt":
+        # port_for doesn't work on windows
+        port = port_for_windows_fix(docker_services, "remote-storage", 9000)
+    else:
+        port = docker_services.port_for("remote-storage", 9000)
     url = "http://{}:{}".format(docker_ip, port)
 
     def is_minio_responsive(url):
@@ -78,43 +107,27 @@ def remote_storage_server(running_on_ci, docker_ip, docker_services) -> Tuple[st
 
 @pytest.fixture(scope="session")
 def remote_storage_config(running_on_ci, remote_storage_server) -> RemoteStorageConfig:
+    if running_on_ci:
+        host = "remote-storage"
+        port = "9000"
+    else:
+        host = remote_storage_server[0]
+        port = remote_storage_server[1]
     config = RemoteStorageConfig(
-        key="minio",
-        secret="minio123",
+        provider="s3",
+        key="minio-root-user",
+        secret="minio-root-password",
         bucket="accsr-integration-tests",
         base_path="",
-        provider="s3",
+        host=host,
+        port=port,
+        secure=False,
     )
-    if running_on_ci:
-        config.host = "remote-storage"
-        config.port = "9000"
-    else:
-        config.host = remote_storage_server[0]
-        config.port = remote_storage_server[1]
     return config
 
 
-@pytest.fixture(scope="module")
-def create_bucket(remote_storage_config, remote_storage_server):
-    # create bucket if it doesn't exist already
-    storage_driver_factory = get_driver(remote_storage_config.provider)
-    driver = storage_driver_factory(
-        key=remote_storage_config.key,
-        secret=remote_storage_config.secret,
-        host=remote_storage_config.host,
-        port=remote_storage_config.port,
-        secure=False,
-    )
-    try:
-        driver.create_container(container_name=remote_storage_config.bucket)
-    except (ContainerAlreadyExistsError, InvalidContainerNameError):
-        pass
-
-
 @pytest.fixture()
-def storage(remote_storage_config, remote_storage_server, create_bucket):
+def storage(remote_storage_config, remote_storage_server):
     storage = RemoteStorage(remote_storage_config)
-    # This has to be set here unless we want to set up certificates for this
-    # TODO: determine whether we should add this to possible_driver_kwargs or not?
-    storage.driver_kwargs["secure"] = False
+    storage.create_bucket()
     return storage
