@@ -25,7 +25,7 @@ jobs:
         ports:
         - "9000:9000"
         - "9001:9001"
-        environment:
+        env:
           MINIO_ROOT_USER: admin-admin-admin
           MINIO_ROOT_PASSWORD: admin-admin-admin
 
