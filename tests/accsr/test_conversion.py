@@ -11,7 +11,6 @@ from accsr.conversions import to_json_compatible_dict, to_json_compatible_value
         (np.array([[1, 2], [3, 4]]), [[1, 2], [3, 4]]),
         (np.array([1.0, 2.0, 3.0]), [1.0, 2.0, 3.0]),
         (np.int64(10), 10),
-        (np.float(10.5), 10.5),
         (np.float32(10.5), 10.5),
         (np.float64(10.5), 10.5),
         (np.int32(1), 1),
