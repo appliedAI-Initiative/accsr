@@ -88,7 +88,7 @@ def remote_storage_server(running_on_ci, docker_ip, docker_services) -> Tuple[st
         port = port_for_windows_fix(docker_services, "remote-storage", 9000)
     else:
         port = docker_services.port_for("remote-storage", 9000)
-    url = "http://{}:{}".format(docker_ip, port)
+    url = f"http://{docker_ip}:{port}"
 
     def is_minio_responsive(url):
         url = urljoin(url, "minio/health/live")

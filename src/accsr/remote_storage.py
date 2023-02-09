@@ -1,10 +1,21 @@
+import json
 import logging.handlers
 import os
-from dataclasses import dataclass, field
+from copy import copy
+from dataclasses import asdict, dataclass, field, is_dataclass
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, List, Optional, Pattern, Protocol, Sequence, Union
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Pattern,
+    Protocol,
+    Sequence,
+    Union,
+    runtime_checkable,
+)
 
 import libcloud
 from libcloud.storage.base import Container, StorageDriver
@@ -19,11 +30,31 @@ from accsr.files import md5sum
 log = logging.getLogger(__name__)
 
 
+class _SummariesJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if is_dataclass(o):
+            return asdict(o)
+        if isinstance(o, RemoteObjectProtocol):
+            return o.__dict__
+        if isinstance(o, SyncObject):
+            return o.to_dict()
+        return str(o)
+
+
+class _JsonReprMixin:
+    def to_json(self) -> str:
+        return json.dumps(self, indent=2, sort_keys=True, cls=_SummariesJSONEncoder)
+
+    def __repr__(self):
+        return f"\n{self.__class__.__name__}: \n{self.to_json()}\n"
+
+
 class Provider(str, Enum):
     GOOGLE_STORAGE = "google_storage"
     S3 = "s3"
 
 
+@runtime_checkable
 class RemoteObjectProtocol(Protocol):
     """
     Protocol of classes that describe remote objects. Describes information about the remote object and functionality
@@ -41,7 +72,7 @@ class RemoteObjectProtocol(Protocol):
         pass
 
 
-class SyncObject:
+class SyncObject(_JsonReprMixin):
     """
     Class representing the sync-status between a local path and a remote object. Is mainly used for creating
     summaries and syncing within RemoteStorage and for introspection before and after push/pull transactions.
@@ -126,8 +157,15 @@ class SyncObject:
         :return: True if the local and the remote file have the same md5sum
         """
         if self.exists_on_target:
-            return self.local_size == self.remote_obj.size
+            return self.local_hash == self.remote_obj.hash
         return False
+
+    def to_dict(self):
+        result = copy(self.__dict__)
+        result["exists_on_remote"] = self.exists_on_remote
+        result["exists_on_target"] = self.exists_on_target
+        result["equal_md5_hash_sum"] = self.equal_md5_hash_sum
+        return result
 
 
 def _get_total_size(objects: Sequence[SyncObject], mode="local"):
@@ -159,8 +197,8 @@ def _get_total_size(objects: Sequence[SyncObject], mode="local"):
     return sum([get_size(obj) for obj in objects])
 
 
-@dataclass
-class TransactionSummary:
+@dataclass(repr=False)
+class TransactionSummary(_JsonReprMixin):
     """
     Class representing the summary of a push or pull operation. Is mainly used for introspection before and after
     push/pull transactions.
@@ -232,7 +270,7 @@ class TransactionSummary:
     def all_files_analyzed(self) -> List[SyncObject]:
         """
         Getter of the all_files_analyzed property.
-        :return: list of all analysed source files
+        :return: list of all analyzed source files
         """
         return self.skipped_source_files + self.matched_source_files
 
