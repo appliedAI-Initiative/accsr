@@ -42,8 +42,8 @@ tox_recreate:
     - name: bitnami/minio:latest
       alias: remote-storage
   variables:
-    MINIO_ACCESS_KEY: minio
-    MINIO_SECRET_KEY: minio123
+    MINIO_ACCESS_KEY: minio-root-user
+    MINIO_SECRET_KEY: minio-root-password
   script:
     - pip install tox
     - tox -r
@@ -67,8 +67,8 @@ tox_use_cache:
     - name: bitnami/minio:latest
       alias: remote-storage
   variables:
-    MINIO_ACCESS_KEY: minio
-    MINIO_SECRET_KEY: minio123
+    MINIO_ACCESS_KEY: minio-root-user
+    MINIO_SECRET_KEY: minio-root-password
   script:
     - pip install tox
     - tox

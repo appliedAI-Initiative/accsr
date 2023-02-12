@@ -22,16 +22,19 @@ jobs:
     services:
       remote-storage:
         image: bitnami/minio:latest
-        env:
-          MINIO_ACCESS_KEY: minio
-          MINIO_SECRET_KEY: minio123
         ports:
-        - 9000:9000
+        - "9000:9000"
+        - "9001:9001"
+        env:
+          MINIO_ROOT_USER: minio-root-user
+          MINIO_ROOT_PASSWORD: minio-root-password
 
     steps:
       # pandoc needed for docu, see https://nbsphinx.readthedocs.io/en/0.7.1/installation.html?highlight=pandoc#pandoc
       - name: Install Non-Python Packages
         run: apt-get update -yq && apt-get -yq install pandoc git git-lfs rsync
+      - name: Safe directory workaround
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - uses: actions/checkout@v2.3.1
         with:
           fetch-depth: 0
@@ -43,6 +46,8 @@ jobs:
       - name: Merge develop into current branch
         if: github.ref != 'refs/heads/develop'
         run: |
+          git config --global user.email "robot@github.com"
+          git config --global user.name "github_robot_user"
           git fetch origin develop:develop --update-head-ok
           git merge develop
       - name: Setup Python 3.8

@@ -1,12 +1,19 @@
 accsr library
 =============
 
-This repository contains the accsr python library together with utilities for building, testing, 
-documentation and configuration management. The library can be installed locally by running
+## Installing
 
-```python setup.py install```
+You should install the library together with all dependencies as an editable package. We strongly suggest to use some form of virtual environment for working with the library. E.g. with conda:
 
-from the root directory.
+```shell
+conda create -n accsr python=3.8
+conda activate accsr
+pip install -e .
+pip install -r requirements-dev.txt -r requirements-docs.txt -r requirements-test.txt -r requirements-linting.txt -r requirements-coverage.txt
+```
+
+from the root directory. Strictly speaking, you wouldn't
+need to install the dev dependencies, as they are installed by `tox` on the file, but they are useful for development without using tox.
 
 This project uses the [black](https://github.com/psf/black) source code formatter
 and [pre-commit](https://pre-commit.com/) to invoke it as a Git pre-commit hook.
@@ -28,14 +35,15 @@ and documentation.
 Before pushing your changes to the remote it is often useful to execute `tox` locally in order to
 detect mistakes early on.
 
-We strongly suggest to use some form of virtual environment for working with the library. E.g. with conda:
-```shell script
-conda create -n accsr python=3.8
-conda activate accsr
-pip install -r requirements.txt -r requirements-dev.txt
-```
 
 ### Testing and packaging
+
+Local testing is done with pytest and tox. Note that you can 
+perform each part of the test pipeline individually as well, either
+by using `tox -e <env>` or by executing the scripts in the
+`build_scripts` directory directly. See the `tox.ini` file for the
+list of available environments and scripts.
+
 The library is built with tox which will build and install the package and run the test suite.
 Running tox will also generate coverage and pylint reports in html and badges. 
 You can configure pytest, coverage and pylint by adjusting [pytest.ini](pytest.ini), [.coveragerc](.coveragerc) and
@@ -65,40 +73,11 @@ tests. Have a look at the example notebook for an explanation of how this works.
 You might wonder why the requirements.txt already contains numpy. The reason is that tox seems to have a problem with empty
 requirements files. Feel free to remove numpy once you have non-trivial requirements
 
-## Configuration Management
-The repository also includes configuration utilities that are often helpful when using data-related libraries. 
-They do not form part of the resulting package, you can (and probably should) adjust them to your needs.
-
-## CI/CD and Release Process
-This repository contains a gitlab ci/cd pipeline that will run the test suite and
-publish docu, badges and reports. Badges can accessed from the pipeline's artifacts, e.g. for the coverage badge
-the url will be:
-```
-https://gitlab.aai.lab/%{project_path}/-/jobs/artifacts/develop/raw/badges/coverage.svg?job=tox
-```
-
-### Development and Release Process
-
-In order to be able to automatically release new versions of the package from develop and master, the
- CI pipeline should have access to the following variables (they should already be set on global level):
-
-```
-PYPI_REPO_URL
-PYPI_REPO_USER
-PYPI_REPO_PASS
-```
-
-They will be used in the release steps in the gitlab pipeline.
-
-You will also need to set up Gitlab CI deploy keys for 
-automatically committing from the develop pipeline during version bumping
-
 
 #### Automatic release process
 
 In order to create an automatic release, a few prerequisites need to be satisfied:
 
-- The project's virtualenv needs to be active
 - The repository needs to be on the `develop` branch
 - The repository must be clean (including no untracked files)
 
