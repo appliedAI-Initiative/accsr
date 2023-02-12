@@ -304,6 +304,25 @@ class TransactionSummary(_JsonReprMixin):
         else:
             self.not_on_target.append(synced_object)
 
+    def get_short_summary_dict(self):
+        """
+        Returns a short summary of the transaction as a dictionary.
+        """
+        return {
+            "sync_direction": self.sync_direction,
+            "files_to_sync": len(self.files_to_sync),
+            "total_size": self.size_files_to_sync(),
+            "unresolvable_collisions": len(self.unresolvable_collisions),
+            "synced_files": len(self.synced_files),
+        }
+
+    def print_short_summary(self):
+        """
+        Prints a short summary of the transaction (shorter than the full repr, which contains
+        information about local and remote objects).
+        """
+        print(json.dumps(self.get_short_summary_dict(), indent=2))
+
 
 @dataclass
 class RemoteStorageConfig:
