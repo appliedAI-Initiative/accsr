@@ -51,13 +51,15 @@ class ConfigurationBase(ABC):
     instead inherit from it.
     """
 
+    ENV_VAR_MARKER = "env:"
+
     def __init__(
         self,
         config_directory: str = None,
         config_files=("config.json", "config_local.json"),
     ):
         """
-        :param config_directory: directory where to look for the config files. Typically this will be a project's
+        :param config_directory: directory where to look for the config files. Typically, this will be a project's
             root directory. If None, the directory with the module containing the configuration class definition
             (inherited from ConfigurationBase) will be used.
         :param config_files: list of JSON configuration files (relative to config_directory) from which to read.
@@ -101,7 +103,14 @@ class ConfigurationBase(ABC):
         for k in key:
             value = value.get(k)
             if value is None:
-                raise Exception(f"Value for key '{key}' not set in configuration")
+                raise KeyError(f"Value for key '{key}' not set in configuration")
+
+            # Special case allowing to extract values from env vars
+            if isinstance(value, str) and value.startswith(self.ENV_VAR_MARKER):
+                env_var_name = value.lstrip(self.ENV_VAR_MARKER)
+                value = os.getenv(env_var_name)
+                if value is None:
+                    raise KeyError(f"Expected non-empty env var: {env_var_name}.")
         return value
 
     def _get_existing_path(self, key: Union[str, List[str]], create=True) -> str:
@@ -286,7 +295,7 @@ class ConfigProviderBase(Generic[ConfigurationClass], ABC):
         """
         Retrieves the configuration object (as singleton).
 
-        :param reload: if True, the config will be reloaded from disk even if it a configuration object already exists.
+        :param reload: if True, the config will be reloaded from disk even if a configuration object already exists.
             This is mainly useful in interactive environments like notebooks
         :param args: passed to init of the configuration class
         :param kwargs: passed to init of the configuration class constructor

@@ -10,14 +10,10 @@ from requests.exceptions import ConnectionError
 
 from accsr.remote_storage import RemoteStorage, RemoteStorageConfig
 
-top_level_directory = os.path.dirname(__file__)
-
-TEST_RESOURCES = os.path.join(top_level_directory, "resources")
-
 
 @pytest.fixture(scope="session")
 def test_resources():
-    return TEST_RESOURCES
+    return os.path.join(os.path.dirname(__file__), "resources")
 
 
 @pytest.fixture(scope="session")
