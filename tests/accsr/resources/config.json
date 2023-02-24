@@ -1,1 +1,7 @@
-{"env_var_entry": "env:THIS_EXISTS", "empty_env_var_entry": "env:THIS_EXISTS_NOT"}
+{
+  "env_var_entry": "env:THIS_EXISTS",
+  "empty_env_var_entry": "env:THIS_EXISTS_NOT",
+  "some_dict": {
+    "env_in_dict": "env:THIS_EXISTS"
+  }
+}
