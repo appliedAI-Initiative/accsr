@@ -20,6 +20,10 @@ class __Configuration(DefaultDataConfiguration):
     def env_in_dict(self):
         return self._get_non_empty_entry(["some_dict", "env_in_dict"])
 
+    @property
+    def some_dict(self):
+        return self._get_non_empty_entry("some_dict")
+
 
 class ConfigProvider(ConfigProviderBase[__Configuration]):
     pass
@@ -50,11 +54,14 @@ def test_storage_config_repr_does_not_include_secret():
 class TestConfig:
     def test_env_var_retrieval(self, test_config):
         os.environ["THIS_EXISTS"] = "env_entry"
-        print(test_config.config)
         assert test_config.env_var_entry == "env_entry"
         assert test_config.env_in_dict == "env_entry"
 
-    def test_empty_env_var_raises(self, test_config):
+    def test_nested_env_vars_replaced(self, test_config):
+        os.environ["THIS_EXISTS"] = "env_entry_in_dict"
+        retrieved_dict = test_config.some_dict
+        assert retrieved_dict["env_in_dict"] == "env_entry_in_dict"
+
+    def test_empty_env_gives_none(self, test_config):
         os.environ.pop("THIS_EXISTS_NOT", None)
-        with pytest.raises(KeyError):
-            test_config.empty_env_var_entry
+        assert test_config.empty_env_var_entry is None

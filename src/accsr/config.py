@@ -27,6 +27,7 @@ import json
 import logging.handlers
 import os
 from abc import ABC
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, Generic, List, Type, TypeVar, Union, get_args
 
@@ -43,6 +44,30 @@ def recursive_dict_update(d: Dict, u: Dict):
         else:
             d[k] = v
     return d
+
+
+def _replace_env_vars(conf: Union[dict], env_var_marker="env:"):
+    for k, v in conf.items():
+        if isinstance(v, str) and v.startswith(env_var_marker):
+            env_var_name = v.lstrip(env_var_marker)
+            conf[k] = os.getenv(env_var_name)
+        elif isinstance(v, dict):
+            _replace_env_vars(v, env_var_marker=env_var_marker)
+
+
+def _get_entry_with_replaced_env_vars(
+    entry: Union[str, float, list, dict], env_var_marker="env:"
+):
+    entry = deepcopy(entry)
+    if isinstance(entry, str) and entry.startswith(env_var_marker):
+        env_var_name = entry.lstrip(env_var_marker)
+        return os.getenv(env_var_name)
+    if isinstance(entry, dict):
+        _replace_env_vars(entry, env_var_marker=env_var_marker)
+        return entry
+    if isinstance(entry, list):
+        return [_get_entry_with_replaced_env_vars(v) for v in entry]
+    return entry
 
 
 class ConfigurationBase(ABC):
@@ -104,14 +129,7 @@ class ConfigurationBase(ABC):
             value = value.get(k)
             if value is None:
                 raise KeyError(f"Value for key '{key}' not set in configuration")
-
-            # Special case allowing to extract values from env vars
-            if isinstance(value, str) and value.startswith(self.ENV_VAR_MARKER):
-                env_var_name = value.lstrip(self.ENV_VAR_MARKER)
-                value = os.getenv(env_var_name)
-                if value is None:
-                    raise KeyError(f"Expected non-empty env var: {env_var_name}.")
-        return value
+        return _get_entry_with_replaced_env_vars(value)
 
     def _get_existing_path(self, key: Union[str, List[str]], create=True) -> str:
         """
