@@ -15,7 +15,7 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     include_package_data=True,
-    version="0.4.1",
+    version="0.4.2-dev0",
     description="Utils for accessing data from anywhere",
     install_requires=open("requirements.txt").readlines(),
     setup_requires=["wheel"],
