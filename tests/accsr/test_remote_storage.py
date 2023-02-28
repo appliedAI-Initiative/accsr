@@ -63,11 +63,11 @@ class TestRemoteStorage:
         assert len(storage.list_objects("sample.txt")) == 0
 
     def test_push_regex_and_glob(self, storage, change_to_resources_dir):
+        # excludes sample_2.txt as well as sample_dir/*
         storage.push(
-            "*", force=True, include_regex="sample.*txt", exclude_regex="sample_2.*"
+            "*", force=True, include_regex="sample.*txt", exclude_regex="sample_.*"
         )
-        assert len(storage.list_objects("sample.txt")) == 1
-        assert len(storage.list_objects("sample_2.txt")) == 0
+        assert len(storage.list_objects("sample")) == 1
         storage.delete("sample.txt")
 
     def test_pull_regex(self, storage, change_to_resources_dir):
