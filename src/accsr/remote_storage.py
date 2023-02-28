@@ -531,9 +531,8 @@ class RemoteStorage:
         :param remote_object: the object to check
         :return:
         """
-        if (
-            full_remote_path.endswith("/") or full_remote_path == ""
-        ):  # no name collisions possible in this case
+        # no name collisions possible in this case
+        if full_remote_path.endswith("/") or full_remote_path == "":
             return False
 
         object_remote_path = RemoteStorage._get_remote_path(remote_object)
