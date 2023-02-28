@@ -1,6 +1,7 @@
 import json
 import logging.handlers
 import os
+import re
 from copy import copy
 from dataclasses import asdict, dataclass, field, is_dataclass
 from enum import Enum
@@ -28,6 +29,12 @@ from tqdm import tqdm
 from accsr.files import md5sum
 
 log = logging.getLogger(__name__)
+
+
+def _to_optional_pattern(regex: Optional[Union[str, Pattern]]) -> Optional[Pattern]:
+    if isinstance(regex, str):
+        return re.compile(regex)
+    return regex
 
 
 class _SummariesJSONEncoder(json.JSONEncoder):
@@ -584,11 +591,11 @@ class RemoteStorage:
         remote_path: str,
         local_base_dir="",
         force=False,
-        include_regex: Pattern = None,
-        exclude_regex: Pattern = None,
+        include_regex: Union[Pattern, str] = None,
+        exclude_regex: Union[Pattern, str] = None,
         convert_to_linux_path=True,
         dryrun=False,
-        path_regex: Pattern = None,
+        path_regex: Union[Pattern, str] = None,
     ) -> TransactionSummary:
         r"""
         Pull either a file or a directory under the given path relative to local_base_dir.
@@ -637,10 +644,10 @@ class RemoteStorage:
         self,
         remote_path: str,
         local_base_dir="",
-        include_regex: Pattern = None,
-        exclude_regex: Pattern = None,
+        include_regex: Union[Pattern, str] = None,
+        exclude_regex: Union[Pattern, str] = None,
         convert_to_linux_path=True,
-        path_regex: Pattern = None,
+        path_regex: Union[Pattern, str] = None,
     ) -> TransactionSummary:
         r"""
         Creates TransactionSummary of the specified pull operation.
@@ -662,6 +669,9 @@ class RemoteStorage:
         :return:
         """
         include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
+
+        include_regex = _to_optional_pattern(include_regex)
+        exclude_regex = _to_optional_pattern(exclude_regex)
 
         local_base_dir = os.path.abspath(local_base_dir)
         if convert_to_linux_path:
@@ -758,9 +768,9 @@ class RemoteStorage:
         self,
         path: str,
         local_path_prefix: Optional[str] = None,
-        include_regex: Optional[Pattern] = None,
-        exclude_regex: Optional[Pattern] = None,
-        path_regex: Optional[Pattern] = None,
+        include_regex: Optional[Union[Pattern, str]] = None,
+        exclude_regex: Optional[Union[Pattern, str]] = None,
+        path_regex: Optional[Union[Pattern, str]] = None,
     ) -> TransactionSummary:
         """
         Retrieves the summary of the push-transaction plan, before it has been executed.
@@ -776,6 +786,9 @@ class RemoteStorage:
         """
         summary = TransactionSummary(sync_direction="push")
         include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
+
+        include_regex = _to_optional_pattern(include_regex)
+        exclude_regex = _to_optional_pattern(exclude_regex)
 
         # collect all paths to scan
         local_path = self._get_push_local_path(path, local_path_prefix)
@@ -831,7 +844,8 @@ class RemoteStorage:
 
     @staticmethod
     def _handle_deprecated_path_regex(
-        include_regex: Optional[Pattern], path_regex: Optional[Pattern]
+        include_regex: Optional[Union[Pattern, str]],
+        path_regex: Optional[Union[Pattern, str]],
     ):
         if path_regex is not None:
             log.warning(
@@ -849,12 +863,12 @@ class RemoteStorage:
     def push(
         self,
         path: str,
-        local_path_prefix: Optional[str] = None,
+        local_path_prefix: str = None,
         force: bool = False,
-        include_regex: Optional[Pattern] = None,
-        exclude_regex: Optional[Pattern] = None,
+        include_regex: Union[Pattern, str] = None,
+        exclude_regex: Union[Pattern, str] = None,
         dryrun: bool = False,
-        path_regex: Optional[Pattern] = None,
+        path_regex: Union[Pattern, str] = None,
     ) -> TransactionSummary:
         """
         Upload a local file or directory into the remote storage.
@@ -896,9 +910,9 @@ class RemoteStorage:
     def delete(
         self,
         remote_path: str,
-        include_regex: Pattern = None,
-        exclude_regex: Pattern = None,
-        path_regex: Pattern = None,
+        include_regex: Union[Pattern, str] = None,
+        exclude_regex: Union[Pattern, str] = None,
+        path_regex: Union[Pattern, str] = None,
     ) -> List[RemoteObjectProtocol]:
         """
         Deletes a file or a directory under the given path relative to local_base_dir. Use with caution.
@@ -911,6 +925,9 @@ class RemoteStorage:
         :return: list of remote objects referring to all deleted files
         """
         include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
+        include_regex = _to_optional_pattern(include_regex)
+        exclude_regex = _to_optional_pattern(exclude_regex)
+
         full_remote_path = self._full_remote_path(remote_path)
 
         remote_objects = self.bucket.list_objects(full_remote_path)
