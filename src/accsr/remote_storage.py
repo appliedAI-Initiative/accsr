@@ -1,3 +1,4 @@
+import glob
 import json
 import logging.handlers
 import os
@@ -776,7 +777,8 @@ class RemoteStorage:
         Retrieves the summary of the push-transaction plan, before it has been executed.
         Nothing will be pushed and the synced_files entry of the summary will be an empty list.
 
-        :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
+        :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative.
+            globs are permitted, thus ``path`` may contain wildcards.
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param include_regex: If not None, only files with paths matching the regex will be pushed.
         :param exclude_regex: If not None, only files with paths not matching the regex will be pushed.
@@ -791,17 +793,18 @@ class RemoteStorage:
         exclude_regex = _to_optional_pattern(exclude_regex)
 
         # collect all paths to scan
-        local_path = self._get_push_local_path(path, local_path_prefix)
-        if os.path.isfile(local_path):
-            all_files_analyzed = [local_path]
-        elif os.path.isdir(local_path):
-            all_files_analyzed = []
-            for root, _, fs in os.walk(local_path):
-                all_files_analyzed.extend([os.path.join(root, f) for f in fs])
-        else:
-            raise FileNotFoundError(
-                f"Local path {local_path} does not refer to a file or directory"
-            )
+        all_files_analyzed = []
+        for local_path in glob.glob(path):
+            local_path = self._get_push_local_path(local_path, local_path_prefix)
+            if os.path.isfile(local_path):
+                all_files_analyzed.append(local_path)
+            elif os.path.isdir(local_path):
+                for root, _, fs in os.walk(local_path):
+                    all_files_analyzed.extend([os.path.join(root, f) for f in fs])
+            else:
+                raise FileNotFoundError(
+                    f"Local path {local_path} does not refer to a file or directory"
+                )
 
         for file in tqdm(all_files_analyzed, desc="Scanning file: "):
             skip = False
@@ -886,7 +889,8 @@ class RemoteStorage:
 
         Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
 
-        :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
+        :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative.
+            globs are supported as well, thus ``path`` may be a pattern like ``*.txt``.
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param force: If False, push will raise an error if an already existing remote file deviates from the local
             in its md5sum. If True, these files are overwritten.

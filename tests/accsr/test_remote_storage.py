@@ -62,16 +62,16 @@ class TestRemoteStorage:
         assert len(deleted_objects) == 1
         assert len(storage.list_objects("sample.txt")) == 0
 
-    def test_push_regex(self, storage, change_to_resources_dir):
+    def test_push_regex_and_glob(self, storage, change_to_resources_dir):
         storage.push(
-            ".", force=True, include_regex="sample.*txt", exclude_regex="sample_2.*"
+            "*", force=True, include_regex="sample.*txt", exclude_regex="sample_2.*"
         )
         assert len(storage.list_objects("sample.txt")) == 1
         assert len(storage.list_objects("sample_2.txt")) == 0
         storage.delete("sample.txt")
 
     def test_pull_regex(self, storage, change_to_resources_dir):
-        storage.push(".", force=True, include_regex="sample.*txt")
+        storage.push("*", force=True, include_regex="sample.*txt")
         assert len(storage.list_objects("sample")) == 2
         summary = storage.pull(
             "", include_regex="sample.*txt", exclude_regex="sample_2.*"
@@ -82,7 +82,7 @@ class TestRemoteStorage:
         storage.delete("", include_regex="sample.*txt")
 
     def test_delete_regex(self, storage, change_to_resources_dir):
-        storage.push(".", force=True, include_regex="sample.*txt")
+        storage.push("*", force=True, include_regex="sample.*txt")
         assert len(storage.list_objects("sample")) == 2
         deleted_objects = storage.delete(
             "", include_regex="sample.*txt", exclude_regex="sample_2.*"
