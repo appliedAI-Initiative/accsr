@@ -425,7 +425,7 @@ class RemoteStorage:
         )
         return storage_driver_factory(**self.driver_kwargs)
 
-    def execute_sync(
+    def _execute_sync(
         self, sync_object: SyncObject, direction: str, force=False
     ) -> SyncObject:
         """
@@ -580,7 +580,7 @@ class RemoteStorage:
 
         with tqdm(total=summary.size_files_to_sync(), desc="Progress (Bytes)") as pbar:
             for sync_obj in summary.files_to_sync:
-                synced_obj = self.execute_sync(
+                synced_obj = self._execute_sync(
                     sync_obj, direction=summary.sync_direction, force=force
                 )
                 pbar.update(synced_obj.local_size)
@@ -621,7 +621,7 @@ class RemoteStorage:
         :return: An object describing the summary of the operation.
         """
         include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
-        summary = self.get_pull_summary(
+        summary = self._get_pull_summary(
             remote_path,
             local_base_dir,
             include_regex=include_regex,
@@ -641,7 +641,7 @@ class RemoteStorage:
         relative_obj_path = self._get_relative_remote_path(obj)
         return os.path.join(local_base_dir, relative_obj_path)
 
-    def get_pull_summary(
+    def _get_pull_summary(
         self,
         remote_path: str,
         local_base_dir="",
@@ -765,7 +765,7 @@ class RemoteStorage:
         """
         return "/".join([self.remote_base_path, local_path]).replace(os.sep, "/")
 
-    def get_push_summary(
+    def _get_push_summary(
         self,
         path: str,
         local_path_prefix: Optional[str] = None,
@@ -903,7 +903,7 @@ class RemoteStorage:
         :return: An object describing the summary of the operation.
         """
         include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
-        summary = self.get_push_summary(
+        summary = self._get_push_summary(
             path,
             local_path_prefix,
             include_regex=include_regex,
