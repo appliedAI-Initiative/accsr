@@ -1,14 +1,23 @@
 """
 Contains helpers for defining and providing configuration classes. A typical usage would be to create the files
 *config.py*, *config.json* and *config_local.json* in a project's root directory. An example of a config.py for a
-data-driven project is:
+data-driven project is below. For a non-data driven project, the configuration class should inherit from
+``accsr.config.ConfigurationBase``, and the resulting class will not have any pre-populated public entries.
 
 >>> from accsr.config import DefaultDataConfiguration, ConfigProviderBase
 >>>
 >>> class __Configuration(DefaultDataConfiguration):
 ...     @property
-...     def custom_entry(self):
-...         return "custom_entry"
+...     def custom_entry_from_config(self):
+...         return self._get_non_empty_entry("custom_entry_from_config")
+...
+...     @property
+...     def existing_path_in_base_dir(self):
+...         return self._get_existing_path(["base_dir", "path_in_base_dir"])
+...
+...     @property
+...     def custom_path_in_processed_data(self):
+...         return self.datafile_path("my_data", stage=self.PROCESSED, check_existence=False)
 >>>
 >>> class ConfigProvider(ConfigProviderBase[__Configuration]):
 ...     pass
@@ -27,22 +36,64 @@ import json
 import logging.handlers
 import os
 from abc import ABC
+from copy import deepcopy
 from pathlib import Path
-from typing import Dict, Generic, List, Type, TypeVar, Union, get_args
+from typing import Callable, Dict, Generic, List, TextIO, Type, TypeVar, Union, get_args
 
 log = logging.getLogger(__name__)
 
 
 def recursive_dict_update(d: Dict, u: Dict):
     """
-    Modifies d by overwriting with non-dict values and updating all dict-values recursively
+    Modifies d inplace by overwriting with non-dict values from u and updating all dict-values recursively.
+    Returns the modified d.
     """
+    # From https://stackoverflow.com/a/3233356/1069467
     for k, v in u.items():
         if isinstance(v, dict):
             d[k] = recursive_dict_update(d.get(k, {}), v)
         else:
             d[k] = v
     return d
+
+
+def _replace_env_vars(conf: Union[dict], env_var_marker="env:"):
+    for k, v in conf.items():
+        if isinstance(v, str) and v.startswith(env_var_marker):
+            env_var_name = v.lstrip(env_var_marker)
+            conf[k] = os.getenv(env_var_name)
+        elif isinstance(v, dict):
+            _replace_env_vars(v, env_var_marker=env_var_marker)
+
+
+def _get_entry_with_replaced_env_vars(
+    entry: Union[str, float, list, dict], env_var_marker="env:"
+):
+    entry = deepcopy(entry)
+    if isinstance(entry, str) and entry.startswith(env_var_marker):
+        env_var_name = entry.lstrip(env_var_marker)
+        return os.getenv(env_var_name)
+    if isinstance(entry, dict):
+        _replace_env_vars(entry, env_var_marker=env_var_marker)
+        return entry
+    if isinstance(entry, list):
+        return [_get_entry_with_replaced_env_vars(v) for v in entry]
+    return entry
+
+
+def get_config_reader(filename: str) -> Callable[[TextIO], Dict]:
+    """
+    Returns a reader for yaml or json files. The file type is determined by the file extension.
+    """
+    if filename.endswith(".yaml") or filename.endswith(".yml"):
+        import yaml
+
+        return yaml.safe_load
+    elif filename.endswith(".json"):
+        return json.load
+    raise ValueError(
+        f"Unsupported file type for {filename}. Supported are .yaml, .yml and .json."
+    )
 
 
 class ConfigurationBase(ABC):
@@ -62,9 +113,12 @@ class ConfigurationBase(ABC):
         :param config_directory: directory where to look for the config files. Typically, this will be a project's
             root directory. If None, the directory with the module containing the configuration class definition
             (inherited from ConfigurationBase) will be used.
-        :param config_files: list of JSON configuration files (relative to config_directory) from which to read.
+        :param config_files: list of JSON or YAML configuration files (relative to config_directory) from which to read.
+            The filenames should end in .json or .yaml/.yml.
             The configurations will be merged (dicts are merged, everything else is overwritten),
             entries more to the right have precedence.
+            Non-existing files from the list will be ignored without errors or warnings. However, at least
+            one file must exist for configuration to be read.
         """
         self.config_directory = (
             config_directory
@@ -74,12 +128,14 @@ class ConfigurationBase(ABC):
         self.config = {}
         for filename in config_files:
             file_path = os.path.join(self.config_directory, filename)
+            file_reader = get_config_reader(filename)
             if os.path.exists(file_path):
-                log.info("Reading configuration from %s" % file_path)
+                log.info(f"Reading configuration from {file_path}")
                 with open(file_path, "r") as f:
-                    recursive_dict_update(self.config, json.load(f))
+                    read_config = file_reader(f)
+                recursive_dict_update(self.config, read_config)
         if not self.config:
-            raise Exception(
+            raise FileNotFoundError(
                 "No configuration entries could be read from"
                 f"{[os.path.join(self.config_directory, c) for c in config_files]}"
             )
@@ -104,14 +160,7 @@ class ConfigurationBase(ABC):
             value = value.get(k)
             if value is None:
                 raise KeyError(f"Value for key '{key}' not set in configuration")
-
-            # Special case allowing to extract values from env vars
-            if isinstance(value, str) and value.startswith(self.ENV_VAR_MARKER):
-                env_var_name = value.lstrip(self.ENV_VAR_MARKER)
-                value = os.getenv(env_var_name)
-                if value is None:
-                    raise KeyError(f"Expected non-empty env var: {env_var_name}.")
-        return value
+        return _get_entry_with_replaced_env_vars(value)
 
     def _get_existing_path(self, key: Union[str, List[str]], create=True) -> str:
         """
@@ -295,8 +344,8 @@ class ConfigProviderBase(Generic[ConfigurationClass], ABC):
         """
         Retrieves the configuration object (as singleton).
 
-        :param reload: if True, the config will be reloaded from disk even if a configuration object already exists.
-            This is mainly useful in interactive environments like notebooks
+        :param reload: if True, the config will be reloaded from disk even if a suitable
+            configuration object already exists. This is mainly useful in interactive environments like notebooks.
         :param args: passed to init of the configuration class
         :param kwargs: passed to init of the configuration class constructor
         :return:

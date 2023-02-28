@@ -1,0 +1,8 @@
+some_dict:
+    some_key: some_value
+    some_other_key: some_other_value
+#  A comment
+some_list:
+    - some_value
+    - some_other_value
+direct_mapping: some_value
