@@ -453,7 +453,8 @@ class RemoteStorage:
                 raise FileNotFoundError(
                     f"Cannot push non-existing file: {sync_object.local_path}"
                 )
-            remote_obj = self.bucket.upload_object(
+            # noinspection PyTypeChecker
+            remote_obj: RemoteObjectProtocol = self.bucket.upload_object(
                 sync_object.local_path,
                 sync_object.remote_path,
                 verify_hash=False,
@@ -513,10 +514,10 @@ class RemoteStorage:
         Checks whether a remote object was falsely listed because its name starts with the same
         characters as full_remote_path.
 
-        Example 1: full remote path is pull/this/dir and the remote storage includes paths like pull/this/dir_subfix.
-        Example 2: full remote path is delete/this/file and the remote storage includes paths like delete/this/file_2.
+        Example 1: full remote path is 'pull/this/dir' and remote storage includes paths like 'pull/this/dir_subfix'.
+        Example 2: full remote path is 'delete/this/file' and remote storage includes paths like 'delete/this/file_2'.
 
-        All such paths will be listed in bucket.list_objects(full_remote_path) and we need to exclude them in
+        All such paths will be listed in bucket.list_objects(full_remote_path), and we need to exclude them in
         most methods like pull or delete.
 
         :param full_remote_path: usually the output of self._full_remote_path(remote_path)
@@ -583,9 +584,11 @@ class RemoteStorage:
         remote_path: str,
         local_base_dir="",
         force=False,
-        path_regex: Pattern = None,
+        include_regex: Pattern = None,
+        exclude_regex: Pattern = None,
         convert_to_linux_path=True,
         dryrun=False,
+        path_regex: Pattern = None,
     ) -> TransactionSummary:
         r"""
         Pull either a file or a directory under the given path relative to local_base_dir.
@@ -593,23 +596,28 @@ class RemoteStorage:
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
             e.g. 'data/ground_truth/some_file.json'
         :param local_base_dir: Local base directory for constructing local path
-            e.g passing 'local_base_dir' will download to the path
+            e.g. passing 'local_base_dir' will download to the path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
         :param force: If False, pull will raise an error if an already existing file deviates from the remote in
             its md5sum. If True, these files are overwritten.
-        :param path_regex: If not None only files with paths matching the regex will be pulled. This is useful for
+        :param include_regex: If not None only files with paths matching the regex will be pulled. This is useful for
             filtering files within a remote directory before pulling them.
+        :param exclude_regex: If not None, files with paths matching the regex will be excluded from the pull.
+            Takes precedence over ``include_regex``, i.e. if a file matches both, it will be excluded.
         :param convert_to_linux_path: if True, will convert windows path to linux path (as needed by remote storage) and
             thus passing a remote path like 'data\my\path' will be converted to 'data/my/path' before pulling.
             This should only be set to False if you want to pull a remote object with '\' in its file name
             (which is discouraged).
         :param dryrun: If True, simulates the pull operation and returns the remote objects that would have been pulled.
+        :param path_regex: DEPRECATED! Use ``include_regex`` instead.
         :return: An object describing the summary of the operation.
         """
+        include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
         summary = self.get_pull_summary(
             remote_path,
             local_base_dir,
-            path_regex,
+            include_regex=include_regex,
+            exclude_regex=exclude_regex,
             convert_to_linux_path=convert_to_linux_path,
         )
         if len(summary.all_files_analyzed) == 0:
@@ -629,8 +637,10 @@ class RemoteStorage:
         self,
         remote_path: str,
         local_base_dir="",
-        path_regex: Pattern = None,
+        include_regex: Pattern = None,
+        exclude_regex: Pattern = None,
         convert_to_linux_path=True,
+        path_regex: Pattern = None,
     ) -> TransactionSummary:
         r"""
         Creates TransactionSummary of the specified pull operation.
@@ -640,20 +650,26 @@ class RemoteStorage:
         :param local_base_dir: Local base directory for constructing local path.
             Example: passing 'local_base_dir' will download to the path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
-        :param path_regex: If not None only files with paths matching the regex will be pulled. This is useful for
+        :param include_regex: If not None, only files with paths matching the regex will be pulled. This is useful for
             filtering files within a remote directory before pulling them.
+        :param exclude_regex: If not None, only files with paths not matching the regex will be pulled.
+           Takes precedence over include_regex, i.e. if a file matches both, it will be excluded.
         :param convert_to_linux_path: if True, will convert windows path to linux path (as needed by remote storage) and
             thus passing a remote path like 'data\my\path' will be converted to 'data/my/path' before pulling.
             This should only be set to False if you want to pull a remote object with '\' in its file name
             (which is discouraged).
+        :param path_regex: DEPRECATED! use ``include_regex`` instead.
         :return:
         """
+        include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
+
         local_base_dir = os.path.abspath(local_base_dir)
         if convert_to_linux_path:
             remote_path = remote_path.replace("\\", "/")
 
         summary = TransactionSummary(sync_direction="pull")
         full_remote_path = self._full_remote_path(remote_path)
+        # noinspection PyTypeChecker
         remote_objects: List[RemoteObjectProtocol] = list(
             self.bucket.list_objects(full_remote_path)
         )
@@ -669,11 +685,20 @@ class RemoteStorage:
                     f"Skipping {obj.name} since it was listed due to name collisions"
                 )
                 skip = True
-            elif path_regex is not None:
+            else:
                 relative_obj_path = self._get_relative_remote_path(obj)
-                if not path_regex.match(relative_obj_path):
-                    log.debug(f"Skipping {relative_obj_path} due to regex {path_regex}")
-                    skip = True
+                if include_regex is not None:
+                    if not include_regex.match(relative_obj_path):
+                        log.debug(
+                            f"Skipping {relative_obj_path} due to regex {include_regex}"
+                        )
+                        skip = True
+                if exclude_regex is not None:
+                    if exclude_regex.match(relative_obj_path):
+                        log.debug(
+                            f"Skipping {relative_obj_path} due to regex {exclude_regex}"
+                        )
+                        skip = True
 
             if not skip:
                 local_path = self._get_destination_path(obj, local_base_dir)
@@ -733,6 +758,8 @@ class RemoteStorage:
         self,
         path: str,
         local_path_prefix: Optional[str] = None,
+        include_regex: Optional[Pattern] = None,
+        exclude_regex: Optional[Pattern] = None,
         path_regex: Optional[Pattern] = None,
     ) -> TransactionSummary:
         """
@@ -741,10 +768,14 @@ class RemoteStorage:
 
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative
         :param local_path_prefix: Prefix to be concatenated with ``path``
-        :param path_regex: If not None only files with paths matching the regex will be pushed
+        :param include_regex: If not None, only files with paths matching the regex will be pushed.
+        :param exclude_regex: If not None, only files with paths not matching the regex will be pushed.
+            Takes precedence over ``include_regex``, i.e. if a file matches both regexes, it will be excluded.
+        :param path_regex: DEPRECATED! Same as ``include_regex``.
         :return: the summary object
         """
         summary = TransactionSummary(sync_direction="push")
+        include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
 
         # collect all paths to scan
         local_path = self._get_push_local_path(path, local_path_prefix)
@@ -763,13 +794,19 @@ class RemoteStorage:
             skip = False
             collides_with = None
             remote_obj = None
-            if path_regex is not None and not path_regex.match(file):
+            if include_regex is not None and not include_regex.match(file):
                 log.debug(
-                    f"Skipping {file} since it does not match regular expression '{path_regex}'."
+                    f"Skipping {file} since it does not match regular expression '{include_regex}'."
+                )
+                skip = True
+            if exclude_regex is not None and exclude_regex.match(file):
+                log.debug(
+                    f"Skipping {file} since it matches regular expression '{exclude_regex}'."
                 )
                 skip = True
 
             remote_path = self.get_push_remote_path(file)
+            # noinspection PyTypeChecker
             matched_remote_obj = [
                 obj
                 for obj in self.bucket.list_objects(remote_path)
@@ -792,13 +829,32 @@ class RemoteStorage:
 
         return summary
 
+    @staticmethod
+    def _handle_deprecated_path_regex(
+        include_regex: Optional[Pattern], path_regex: Optional[Pattern]
+    ):
+        if path_regex is not None:
+            log.warning(
+                "Using deprecated parameter 'path_regex'. Use 'include_regex' instead."
+            )
+            if include_regex is not None:
+                raise ValueError(
+                    "Cannot specify both 'path_regex' and 'include_regex'. "
+                    "Use only 'include_regex' instead, 'path_regex' is deprecated."
+                    f"Got {path_regex=} and {include_regex=}"
+                )
+            include_regex = path_regex
+        return include_regex
+
     def push(
         self,
         path: str,
         local_path_prefix: Optional[str] = None,
         force: bool = False,
-        path_regex: Pattern = None,
+        include_regex: Optional[Pattern] = None,
+        exclude_regex: Optional[Pattern] = None,
         dryrun: bool = False,
+        path_regex: Optional[Pattern] = None,
     ) -> TransactionSummary:
         """
         Upload a local file or directory into the remote storage.
@@ -820,26 +876,41 @@ class RemoteStorage:
         :param local_path_prefix: Prefix to be concatenated with ``path``
         :param force: If False, push will raise an error if an already existing remote file deviates from the local
             in its md5sum. If True, these files are overwritten.
-        :param path_regex: If not None only files with paths matching the regex will be pushed
+        :param include_regex: If not None, only files with paths matching the regex will be pushed.
+        :param exclude_regex: If not None, only files with paths not matching the regex will be pushed. Takes precedence
+            over ``include_regex``, i.e. if a file matches both regexes, it will be excluded.
         :param dryrun: If True, simulates the push operation and returns the summary
             (with synced_files being an empty list). Same as get_push_summary method.
+        :param path_regex: DEPRECATED! Same as ``include_regex``.
         :return: An object describing the summary of the operation.
         """
-        summary = self.get_push_summary(path, local_path_prefix, path_regex)
+        include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
+        summary = self.get_push_summary(
+            path,
+            local_path_prefix,
+            include_regex=include_regex,
+            exclude_regex=exclude_regex,
+        )
         return self._execute_sync_from_summary(summary, dryrun=dryrun, force=force)
 
     def delete(
         self,
         remote_path: str,
+        include_regex: Pattern = None,
+        exclude_regex: Pattern = None,
         path_regex: Pattern = None,
     ) -> List[RemoteObjectProtocol]:
         """
         Deletes a file or a directory under the given path relative to local_base_dir. Use with caution.
 
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
-        :param path_regex: If not None only files with paths matching the regex will be deleted.
+        :param include_regex: If not None only files with paths matching the regex will be deleted.
+        :param exclude_regex: If not None only files with paths not matching the regex will be deleted.
+            Takes precedence over ``include_regex``, i.e. if a file matches both regexes, it will be excluded.
+        :param path_regex: DEPRECATED! Same as ``include_regex``.
         :return: list of remote objects referring to all deleted files
         """
+        include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
         full_remote_path = self._full_remote_path(remote_path)
 
         remote_objects = self.bucket.list_objects(full_remote_path)
@@ -859,10 +930,14 @@ class RemoteStorage:
                 continue
 
             relative_obj_path = self._get_relative_remote_path(remote_obj)
-            if path_regex is not None and not path_regex.match(relative_obj_path):
-                log.info(f"Skipping {relative_obj_path} due to regex {path_regex}")
+            if include_regex is not None and not include_regex.match(relative_obj_path):
+                log.info(f"Skipping {relative_obj_path} due to regex {include_regex}")
+                continue
+            if exclude_regex is not None and exclude_regex.match(relative_obj_path):
+                log.info(f"Skipping {relative_obj_path} due to regex {exclude_regex}")
                 continue
             log.debug(f"Deleting {remote_obj.name}")
+            # noinspection PyTypeChecker
             self.bucket.delete_object(remote_obj)
             deleted_objects.append(remote_obj)
         return deleted_objects
@@ -873,4 +948,5 @@ class RemoteStorage:
         :return: list of remote objects under the remote path (multiple entries if the remote path is a directory)
         """
         full_remote_path = self._full_remote_path(remote_path)
+        # noinspection PyTypeChecker
         return self.bucket.list_objects(full_remote_path)
