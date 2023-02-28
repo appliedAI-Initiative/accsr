@@ -1,5 +1,5 @@
 # Changelog
-## 0.4.3
+## 0.4.2
 Major first documented release.
 
 ### Features:

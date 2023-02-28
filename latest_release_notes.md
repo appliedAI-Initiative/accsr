@@ -1,4 +1,4 @@
-# Release Notes for accsr 0.4.2-dev0
+# Release Notes: 0.4.2-dev0
 
 This is the first documented release of accsr.
 The main features are:
