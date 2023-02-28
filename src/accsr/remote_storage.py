@@ -801,10 +801,10 @@ class RemoteStorage:
             elif os.path.isdir(local_path):
                 for root, _, fs in os.walk(local_path):
                     all_files_analyzed.extend([os.path.join(root, f) for f in fs])
-            else:
-                raise FileNotFoundError(
-                    f"Local path {local_path} does not refer to a file or directory"
-                )
+        if len(all_files_analyzed) == 0:
+            raise FileNotFoundError(
+                f"No files found under {path=} with {local_path_prefix=}"
+            )
 
         for file in tqdm(all_files_analyzed, desc="Scanning file: "):
             skip = False

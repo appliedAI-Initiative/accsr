@@ -71,7 +71,9 @@ class TestRemoteStorage:
         storage.delete("sample.txt")
 
     def test_pull_regex(self, storage, change_to_resources_dir):
-        storage.push("*", force=True, include_regex="sample.*txt")
+        storage.push(
+            "*", force=True, include_regex="sample.*txt", exclude_regex="sample_dir.*"
+        )
         assert len(storage.list_objects("sample")) == 2
         summary = storage.pull(
             "", include_regex="sample.*txt", exclude_regex="sample_2.*"
@@ -82,7 +84,9 @@ class TestRemoteStorage:
         storage.delete("", include_regex="sample.*txt")
 
     def test_delete_regex(self, storage, change_to_resources_dir):
-        storage.push("*", force=True, include_regex="sample.*txt")
+        storage.push(
+            "*", force=True, include_regex="sample.*txt", exclude_regex="sample_dir.*"
+        )
         assert len(storage.list_objects("sample")) == 2
         deleted_objects = storage.delete(
             "", include_regex="sample.*txt", exclude_regex="sample_2.*"
@@ -148,9 +152,7 @@ class TestRemoteStorage:
         "file_or_dir_name", ["non_existing_file.txt", "non_existing_dir"]
     )
     def test_push_non_existing(self, storage, file_or_dir_name):
-        with pytest.raises(
-            FileNotFoundError, match="does not refer to a file or directory"
-        ):
+        with pytest.raises(FileNotFoundError, match=file_or_dir_name):
             storage.push(file_or_dir_name)
 
     @pytest.mark.parametrize(
