@@ -1,4 +1,9 @@
 # Changelog
+
+## 0.4.3
+Reduced public interface of remote storage.
+Fixed GH action for releasing to PyPi
+
 ## 0.4.2
 Major first documented release.
 
