@@ -299,18 +299,17 @@ class TransactionSummary(_JsonReprMixin):
             synced_object = SyncObject(synced_object)
         if skip:
             self.skipped_source_files.append(synced_object)
-            return
-
-        self.matched_source_files.append(synced_object)
-        if collides_with:
-            self.unresolvable_collisions[synced_object.name] = collides_with
-        elif synced_object.exists_on_target:
-            if synced_object.equal_md5_hash_sum:
-                self.on_target_eq_md5.append(synced_object)
-            else:
-                self.on_target_neq_md5.append(synced_object)
         else:
-            self.not_on_target.append(synced_object)
+            self.matched_source_files.append(synced_object)
+            if collides_with:
+                self.unresolvable_collisions[synced_object.name] = collides_with
+            elif synced_object.exists_on_target:
+                if synced_object.equal_md5_hash_sum:
+                    self.on_target_eq_md5.append(synced_object)
+                else:
+                    self.on_target_neq_md5.append(synced_object)
+            else:
+                self.not_on_target.append(synced_object)
 
     def get_short_summary_dict(self):
         """
@@ -532,7 +531,9 @@ class RemoteStorage:
         :param remote_object: the object to check
         :return:
         """
-        if full_remote_path.endswith("/"):  # no name collisions possible in this case
+        if (
+            full_remote_path.endswith("/") or full_remote_path == ""
+        ):  # no name collisions possible in this case
             return False
 
         object_remote_path = RemoteStorage._get_remote_path(remote_object)
