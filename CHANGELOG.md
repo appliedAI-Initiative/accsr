@@ -1,5 +1,15 @@
 # Changelog
+## 0.4.3
+Major first documented release.
 
+### Features:
+- Transactional safety and dry-run mode for RemoteStorage
+- Extended support for glob and regex patterns in RemoteStorage
+- Support for yaml files in Configuration
+- Documentation in notebook for storage and configuration modules
+
+### Improvements:
+- Fixed and extended tests
 
 ## 0.1.3 Bugfix release
 
