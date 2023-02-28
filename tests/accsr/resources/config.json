@@ -3,5 +3,9 @@
   "empty_env_var_entry": "env:THIS_EXISTS_NOT",
   "some_dict": {
     "env_in_dict": "env:THIS_EXISTS"
-  }
+  },
+  "some_list": [
+    "env:THIS_EXISTS"
+  ],
+  "overwritten_entry": "in_base"
 }
