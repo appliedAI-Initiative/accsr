@@ -41,13 +41,35 @@ def _to_optional_pattern(regex: Optional[Union[str, Pattern]]) -> Optional[Patte
 
 class _SummariesJSONEncoder(json.JSONEncoder):
     def default(self, o):
+        if isinstance(o, TransactionSummary):
+            # special case for TransactionSummary, since the drivers are not serializable and dataclasses.asdict
+            # calls deepcopy
+            result = copy(o.__dict__)
+            _replace_driver_by_name(result)
+            return result
         if is_dataclass(o):
             return asdict(o)
         if isinstance(o, RemoteObjectProtocol):
-            return o.__dict__
+            result = copy(o.__dict__)
+            _replace_driver_by_name(result)
+            return result
         if isinstance(o, SyncObject):
-            return o.to_dict()
+            return o.to_dict(make_serializable=True)
         return str(o)
+
+
+def _replace_driver_by_name(obj):
+    # The driver object from libcloud stores a connection and is not serializable.
+    # Since sometimes we want to be able to deepcopy these things around,
+    # we replace the driver by its name. This is needed for `asdict` to work.
+    if isinstance(obj, RemoteObjectProtocol) and hasattr(obj, "driver"):
+        obj.driver = obj.driver.name
+    if isinstance(obj, list) or isinstance(obj, tuple):
+        for item in obj:
+            _replace_driver_by_name(item)
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            _replace_driver_by_name(value)
 
 
 class _JsonReprMixin:
@@ -110,12 +132,6 @@ class SyncObject(_JsonReprMixin):
         remote_obj: RemoteObjectProtocol = None,
         remote_path: str = None,
     ):
-        # The driver object from libcloud stores a connection and is not serializable.
-        # Since we want to be able to deepcopy these things around, we replace the driver by its name.
-        remote_obj = copy(remote_obj)
-        if hasattr(remote_obj, "driver"):
-            remote_obj.driver = remote_obj.driver.name
-
         if remote_path is not None:
             remote_path = remote_path.lstrip("/")
         if remote_obj is not None:
@@ -184,8 +200,11 @@ class SyncObject(_JsonReprMixin):
             return self.local_hash == self.remote_obj.hash
         return False
 
-    def to_dict(self):
+    def to_dict(self, make_serializable=True):
         result = copy(self.__dict__)
+        if make_serializable:
+            _replace_driver_by_name(result)
+
         result["exists_on_remote"] = self.exists_on_remote
         result["exists_on_target"] = self.exists_on_target
         result["equal_md5_hash_sum"] = self.equal_md5_hash_sum
