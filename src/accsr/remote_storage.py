@@ -110,6 +110,18 @@ class SyncObject(_JsonReprMixin):
         remote_obj: RemoteObjectProtocol = None,
         remote_path: str = None,
     ):
+        # The driver object from libcloud stores a connection and is not serializable.
+        # Since we want to be able to deepcopy these things around, we replace the driver by its name.
+        remote_obj = copy(remote_obj)
+        if hasattr(remote_obj, "driver"):
+            remote_obj.driver = remote_obj.driver.name
+
+        if remote_path is not None:
+            remote_path = remote_path.lstrip("/")
+        if remote_obj is not None:
+            remote_obj = copy(remote_obj)
+            remote_obj.name = remote_obj.name.lstrip("/")
+
         self.exists_locally = False
         self.local_path = None
         self.set_local_path(local_path)
@@ -143,9 +155,7 @@ class SyncObject(_JsonReprMixin):
     @property
     def exists_on_target(self) -> bool:
         """
-        Getter of the exists_on_target property. Since the file exists at least once (locally or remotely), the property
-        is True iff the file exists on both locations
-        :return: True iff the file exists on both locations
+        True iff the file exists on both locations
         """
         return self.exists_on_remote and self.exists_locally
 
@@ -166,18 +176,10 @@ class SyncObject(_JsonReprMixin):
 
     @property
     def exists_on_remote(self):
-        """
-        Getter of the exists_on_remote property. Is true if the file was found on the remote.
-        :return: whether the file exists on the remote
-        """
         return self.remote_obj is not None
 
     @property
     def equal_md5_hash_sum(self):
-        """
-        Getter of the equal_md5_hash_sum property.
-        :return: True if the local and the remote file have the same md5sum
-        """
         if self.exists_on_target:
             return self.local_hash == self.remote_obj.hash
         return False
@@ -549,6 +551,8 @@ class RemoteStorage:
         if full_remote_path.endswith("/") or full_remote_path == "":
             return False
 
+        # Remove leading / for comparison of paths
+        full_remote_path = full_remote_path.lstrip("/")
         object_remote_path = RemoteStorage._get_remote_path(remote_object)
         is_in_selected_dir = object_remote_path.startswith(full_remote_path + "/")
         is_selected_file = object_remote_path == full_remote_path
@@ -769,6 +773,8 @@ class RemoteStorage:
         summary = TransactionSummary(sync_direction="push")
         include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
 
+        if local_path_prefix is not None:
+            local_path_prefix = os.path.abspath(local_path_prefix)
         include_regex = _to_optional_pattern(include_regex)
         exclude_regex = _to_optional_pattern(exclude_regex)
 
@@ -801,7 +807,7 @@ class RemoteStorage:
             ):
                 collides_with = None
                 remote_obj = None
-                skip = self._should_skip(file, exclude_regex, include_regex)
+                skip = self._should_skip(file, include_regex, exclude_regex)
 
                 remote_path = self.get_push_remote_path(file)
                 # noinspection PyTypeChecker
@@ -828,7 +834,7 @@ class RemoteStorage:
         return summary
 
     @staticmethod
-    def _should_skip(file: str, exclude_regex: Pattern, include_regex: Pattern):
+    def _should_skip(file: str, include_regex: Pattern, exclude_regex: Pattern):
         if include_regex is not None and not include_regex.match(file):
             log.debug(
                 f"Skipping {file} since it does not match regular expression '{include_regex}'."
@@ -920,7 +926,7 @@ class RemoteStorage:
         path_regex: Union[Pattern, str] = None,
     ) -> List[RemoteObjectProtocol]:
         """
-        Deletes a file or a directory under the given path relative to local_base_dir. Use with caution.
+        Deletes a file or a directory under the given path relative to local_base_dir. Use with caution!
 
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
         :param include_regex: If not None only files with paths matching the regex will be deleted.
