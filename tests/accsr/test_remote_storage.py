@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from typing import Generator
 
 import pytest
@@ -13,7 +14,7 @@ def change_to_resources_dir(test_resources, request):
 
 
 @pytest.fixture()
-def test_filename(
+def file_on_storage(
     change_to_resources_dir, storage, request
 ) -> Generator[str, None, None]:
     """Pushes a file to remote storage, yields its filename and then deletes it from remote storage"""
@@ -38,7 +39,7 @@ def setup_name_collision(change_to_resources_dir, storage):
 
 
 @pytest.fixture()
-def test_dirname(
+def dir_on_storage(
     change_to_resources_dir, storage, request
 ) -> Generator[str, None, None]:
     """Pushes a directory to remote storage, yields its name and then deletes it from remote storage"""
@@ -112,24 +113,17 @@ class TestRemoteStorage:
         assert len(deleted_objects) == 2
         assert len(storage.list_objects("sample_dir")) == 0
 
-    @pytest.mark.parametrize(
-        "test_filename",
-        ["sample.txt"],
-        indirect=["test_filename"],
-    )
-    def test_push_file_empty_base_path(self, storage, test_filename):
+    def test_push_file_empty_base_path(self, storage, change_to_resources_dir):
+        test_filename = "sample.txt"
         push_summary = storage.push(test_filename)
         assert len(push_summary.synced_files) == 1
         # we need lstrip because s3 paths (and names) start with "/" while google storage paths start without it...
         assert push_summary.synced_files[0].name.lstrip("/") == test_filename
+        storage.delete(test_filename)
 
-    @pytest.mark.parametrize(
-        "test_filename",
-        ["sample.txt"],
-        indirect=["test_filename"],
-    )
-    def test_push_file_nonempty_base_path(self, storage, test_filename):
+    def test_push_file_nonempty_base_path(self, storage):
         base_path = "base_path"
+        test_filename = "sample.txt"
         storage.set_remote_base_path(base_path)
         push_summary = storage.push(test_filename)
         assert len(push_summary.synced_files) == 1
@@ -137,16 +131,39 @@ class TestRemoteStorage:
             push_summary.synced_files[0].name.lstrip("/")
             == f"{base_path}/{test_filename}"
         )
+        storage.delete(test_filename)
 
-    @pytest.mark.parametrize(
-        "test_dirname",
-        ["sample_dir"],
-        indirect=["test_dirname"],
-    )
-    def test_push_directory(self, storage, test_dirname):
+    def test_push_file_local_path_prefix(self, storage, test_resources):
+        assert len(storage.list_objects("sample.txt")) == 0
+        test_filename = "sample.txt"
+        push_summary = storage.push(test_filename, local_path_prefix=test_resources)
+        assert len(push_summary.synced_files) == 1
+        # Now same file with absolute path, should not need to push again
+        push_summary = storage.push(
+            Path(test_resources) / test_filename, local_path_prefix=test_resources
+        )
+        assert len(push_summary.synced_files) == 0
+        storage.delete(test_filename)
+
+    def test_push_file_local_path_prefix_and_glob(self, storage, test_resources):
+        test_filename = "s*le_2.txt"  # matches only sample_2.txt
+        assert len(storage.list_objects("sample_2.txt")) == 0
+        push_summary = storage.push(test_filename, local_path_prefix=test_resources)
+        assert len(push_summary.synced_files) == 1
+        # Now same file with absolute path, should not need to push again
+        push_summary = storage.push(
+            Path(test_resources) / test_filename, local_path_prefix=test_resources
+        )
+        assert len(push_summary.synced_files) == 0
+        storage.delete("sample_2.txt")
+
+    def test_push_directory(self, storage):
+        assert len(storage.list_objects("sample_dir")) == 0
+        test_dirname = "sample_dir"
         push_summary = storage.push(test_dirname)
         assert len(push_summary.synced_files) == 2
         assert len(storage.list_objects(test_dirname)) == 2
+        storage.delete(test_dirname)
 
     @pytest.mark.parametrize(
         "file_or_dir_name", ["non_existing_file.txt", "non_existing_dir"]
@@ -156,42 +173,55 @@ class TestRemoteStorage:
             storage.push(file_or_dir_name)
 
     @pytest.mark.parametrize(
-        "test_filename",
+        "file_on_storage",
         ["sample.txt"],
-        indirect=["test_filename"],
+        indirect=["file_on_storage"],
     )
-    def test_pull_file(self, storage, test_filename, tmpdir):
+    def test_pull_file(self, storage, file_on_storage, tmpdir):
         local_base_dir = tmpdir.mkdir("remote_storage")
-        storage.pull(test_filename, local_base_dir=local_base_dir)
-        assert os.path.isfile(os.path.join(local_base_dir, test_filename))
-        pull_summary = storage.pull(test_filename, force=False)
+        storage.pull(file_on_storage, local_base_dir=local_base_dir)
+        assert os.path.isfile(os.path.join(local_base_dir, file_on_storage))
+        pull_summary = storage.pull(file_on_storage, force=False)
         assert len(pull_summary.synced_files) == 0
 
     @pytest.mark.parametrize(
-        "test_filename",
+        "file_on_storage",
         ["sample.txt"],
-        indirect=["test_filename"],
+        indirect=["file_on_storage"],
     )
-    def test_pull_file_to_existing_dir_path(self, storage, test_filename, tmpdir):
+    def test_push_existing_file(self, storage, file_on_storage):
+        assert len(storage.list_objects(file_on_storage)) == 1
+        push_summary = storage.push(file_on_storage, force=False)
+        assert len(push_summary.synced_files) == 0
+        push_summary = storage.push(file_on_storage, force=True)
+        # still zero because we are pushing the same file
+        assert len(push_summary.synced_files) == 0
+
+    @pytest.mark.parametrize(
+        "file_on_storage",
+        ["sample.txt"],
+        indirect=["file_on_storage"],
+    )
+    def test_pull_file_to_existing_dir_path(self, storage, file_on_storage, tmpdir):
         local_base_dir = tmpdir.mkdir("remote_storage")
-        local_base_dir.mkdir(test_filename)
+        local_base_dir.mkdir(file_on_storage)
         with pytest.raises(
             FileExistsError,
             match=r".*directory:.*",
         ):
-            storage.pull(test_filename, local_base_dir=local_base_dir)
+            storage.pull(file_on_storage, local_base_dir=local_base_dir)
 
     @pytest.mark.parametrize(
-        "test_dirname",
+        "dir_on_storage",
         ["sample_dir"],
-        indirect=["test_dirname"],
+        indirect=["dir_on_storage"],
     )
-    def test_pull_dir(self, storage, test_dirname, tmpdir):
+    def test_pull_dir(self, storage, dir_on_storage, tmpdir):
         local_base_dir = tmpdir.mkdir("remote_storage")
-        storage.pull(test_dirname, local_base_dir=local_base_dir)
-        assert os.path.isdir(os.path.join(local_base_dir, test_dirname))
-        assert len(os.listdir(os.path.join(local_base_dir, test_dirname))) == 2
-        pull_summary = storage.pull(test_dirname, force=False)
+        storage.pull(dir_on_storage, local_base_dir=local_base_dir)
+        assert os.path.isdir(os.path.join(local_base_dir, dir_on_storage))
+        assert len(os.listdir(os.path.join(local_base_dir, dir_on_storage))) == 2
+        pull_summary = storage.pull(dir_on_storage, force=False)
         assert len(pull_summary.synced_files) == 0
 
     @pytest.mark.parametrize(
@@ -238,4 +268,11 @@ class TestRemoteStorage:
         assert "file.txt.collision" in remaining_object_names
         assert "dir_name/file.txt" in remaining_object_names
 
-    # TODO or not TODO: several cases are missing - checking names, testing overwriting.
+    def test_summary_repr(self, storage, change_to_resources_dir):
+        summary = storage.push("*")
+        assert summary.sync_direction == "push"
+        summary.print_short_summary()
+        assert isinstance(summary.to_json(), str)
+        assert isinstance(repr(summary), str)
+
+    # TODO: several cases are still missing - e.g. testing overwriting with force=True.
