@@ -1,8 +1,12 @@
 # Changelog
 
+## 0.4.4
+- Fixed bugs in RemoteStorage related to name collisions and serialization.
+- Enhanced tests for RemoteStorage
+
 ## 0.4.3
-Reduced public interface of remote storage.
-Fixed GH action for releasing to PyPi
+- Reduced public interface of remote storage
+- Fixed GH action for releasing to PyPi
 
 ## 0.4.2
 Major first documented release.
