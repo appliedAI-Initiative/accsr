@@ -1,4 +1,7 @@
 # Release Notes: 0.4.4-dev0
 
-- Reduced public interface of RemoteStorage
-- Fixed GH action for releasing to PyPi
+## Bugfix release
+- Fixed bugs in RemoteStorage related to name collisions and serialization.
+Previously it could happen that files would be re-pushed/pulled despite
+already existing on the target.
+- Enhanced tests for RemoteStorage
