@@ -3,6 +3,7 @@ import json
 import logging.handlers
 import os
 import re
+from contextlib import contextmanager
 from copy import copy
 from dataclasses import asdict, dataclass, field, is_dataclass
 from enum import Enum
@@ -55,6 +56,19 @@ class _JsonReprMixin:
 
     def __repr__(self):
         return f"\n{self.__class__.__name__}: \n{self.to_json()}\n"
+
+
+@contextmanager
+def _switch_to_dir(path: str = None) -> bool:
+    if not path:
+        return
+
+    cur_dir = os.getcwd()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(cur_dir)
 
 
 class Provider(str, Enum):
@@ -685,10 +699,12 @@ class RemoteStorage:
             self.bucket.list_objects(full_remote_path)
         )
 
-        for obj in tqdm(remote_objects, desc="Remote paths: "):
+        for obj in tqdm(
+            remote_objects,
+            desc=f"Scanning remote paths in {self.bucket.name}/{full_remote_path}: ",
+        ):
             local_path = None
             collides_with = None
-            skip = False
             if (obj.size == 0) or (
                 self._listed_due_to_name_collision(full_remote_path, obj)
             ):
@@ -698,18 +714,9 @@ class RemoteStorage:
                 skip = True
             else:
                 relative_obj_path = self._get_relative_remote_path(obj)
-                if include_regex is not None:
-                    if not include_regex.match(relative_obj_path):
-                        log.debug(
-                            f"Skipping {relative_obj_path} due to regex {include_regex}"
-                        )
-                        skip = True
-                if exclude_regex is not None:
-                    if exclude_regex.match(relative_obj_path):
-                        log.debug(
-                            f"Skipping {relative_obj_path} due to regex {exclude_regex}"
-                        )
-                        skip = True
+                skip = self._should_skip(
+                    relative_obj_path, include_regex, exclude_regex
+                )
 
             if not skip:
                 local_path = self._get_destination_path(obj, local_base_dir)
@@ -721,40 +728,6 @@ class RemoteStorage:
             )
 
         return summary
-
-    @staticmethod
-    def _get_push_local_path(path: str, local_path_prefix: Optional[str] = None) -> str:
-        """
-        Get the full local path of a file for pushing, including an optional path prefix.
-        Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
-
-        **Usage Examples:**
-
-        >>> RemoteStorage._get_push_local_path('/foo/bar/baz.txt')
-        '/foo/bar/baz.txt'
-        >>> RemoteStorage._get_push_local_path('foo/bar/baz.txt')
-        'foo/bar/baz.txt'
-        >>> RemoteStorage._get_push_local_path('bar/baz.txt', local_path_prefix='/foo')
-        '/foo/bar/baz.txt'
-        >>> RemoteStorage._get_push_local_path('/bar/baz.txt', local_path_prefix='/foo')
-        Traceback (most recent call last):
-        ...
-        ValueError: /bar/baz.txt is an absolute path and local_path_prefix was specified
-
-        :param path:
-        :param local_path_prefix:
-        :return: the full local path of the file
-        """
-        # Parameter validation
-        if local_path_prefix and Path(path).is_absolute():
-            raise ValueError(
-                f"{path} is an absolute path and local_path_prefix was specified"
-            )
-
-        if Path(path).is_absolute():
-            return path
-        else:
-            return os.path.join(local_path_prefix or "", path)
 
     def get_push_remote_path(self, local_path: str) -> str:
         """
@@ -779,10 +752,17 @@ class RemoteStorage:
 
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative.
             globs are permitted, thus ``path`` may contain wildcards.
-        :param local_path_prefix: Prefix to be concatenated with ``path``
+        :param local_path_prefix: path names on the remote will be relative to this path. Thus, specifying
+            for example ``local_path_prefix=/bar/foo`` (on a unix system) and ``path=baz``
+            will push ``/bar/foo/baz`` to ``remote_base_path/baz``. The same will happen if
+            ``path=/bar/foo/baz`` is specified.
+            **NOTE**: if ``local_path_prefix`` is specified and ``path`` is absolute, it is assumed that
+            ``path`` is child of ``local_path_prefix``. If this is not the case, an error will be raised.
         :param include_regex: If not None, only files with paths matching the regex will be pushed.
+            Note that paths matched against the regex will be relative to ``local_path_prefix``.
         :param exclude_regex: If not None, only files with paths not matching the regex will be pushed.
             Takes precedence over ``include_regex``, i.e. if a file matches both regexes, it will be excluded.
+            Note that paths matched against the regex will be relative to ``local_path_prefix``.
         :param path_regex: DEPRECATED! Same as ``include_regex``.
         :return: the summary object
         """
@@ -792,58 +772,74 @@ class RemoteStorage:
         include_regex = _to_optional_pattern(include_regex)
         exclude_regex = _to_optional_pattern(exclude_regex)
 
-        # collect all paths to scan
-        all_files_analyzed = []
-        for local_path in glob.glob(path):
-            local_path = self._get_push_local_path(local_path, local_path_prefix)
-            if os.path.isfile(local_path):
-                all_files_analyzed.append(local_path)
-            elif os.path.isdir(local_path):
-                for root, _, fs in os.walk(local_path):
-                    all_files_analyzed.extend([os.path.join(root, f) for f in fs])
-        if len(all_files_analyzed) == 0:
-            raise FileNotFoundError(
-                f"No files found under {path=} with {local_path_prefix=}"
-            )
-
-        for file in tqdm(all_files_analyzed, desc="Scanning file: "):
-            skip = False
-            collides_with = None
-            remote_obj = None
-            if include_regex is not None and not include_regex.match(file):
-                log.debug(
-                    f"Skipping {file} since it does not match regular expression '{include_regex}'."
+        _path = Path(path)
+        if _path.is_absolute() and local_path_prefix:
+            try:
+                path = str(_path.relative_to(local_path_prefix))
+            except ValueError:
+                raise ValueError(
+                    f"Specified {path=} is not a child of {local_path_prefix=}"
                 )
-                skip = True
-            if exclude_regex is not None and exclude_regex.match(file):
-                log.debug(
-                    f"Skipping {file} since it matches regular expression '{exclude_regex}'."
+
+        # at this point, path is relative to local_path_prefix.
+        with _switch_to_dir(local_path_prefix):
+            # collect all paths to scan
+            all_files_analyzed = []
+            for local_path in glob.glob(path):
+                if os.path.isfile(local_path):
+                    all_files_analyzed.append(local_path)
+                elif os.path.isdir(local_path):
+                    for root, _, fs in os.walk(local_path):
+                        all_files_analyzed.extend([os.path.join(root, f) for f in fs])
+            if len(all_files_analyzed) == 0:
+                raise FileNotFoundError(
+                    f"No files found under {path=} with {local_path_prefix=}"
                 )
-                skip = True
 
-            remote_path = self.get_push_remote_path(file)
-            # noinspection PyTypeChecker
-            matched_remote_obj = [
-                obj
-                for obj in self.bucket.list_objects(remote_path)
-                if not self._listed_due_to_name_collision(remote_path, obj)
-            ]
+            for file in tqdm(
+                all_files_analyzed, desc=f"Scanning files in {os.getcwd()}: "
+            ):
+                collides_with = None
+                remote_obj = None
+                skip = self._should_skip(file, exclude_regex, include_regex)
 
-            # name collision of local file with remote dir
-            if len(matched_remote_obj) > 1:
-                collides_with = matched_remote_obj
+                remote_path = self.get_push_remote_path(file)
+                # noinspection PyTypeChecker
+                matched_remote_obj = [
+                    obj
+                    for obj in self.bucket.list_objects(remote_path)
+                    if not self._listed_due_to_name_collision(remote_path, obj)
+                ]
 
-            elif matched_remote_obj:
-                remote_obj = matched_remote_obj[0]
+                # name collision of local file with remote dir
+                if len(matched_remote_obj) > 1:
+                    collides_with = matched_remote_obj
 
-            synced_obj = SyncObject(file, remote_obj, remote_path=remote_path)
-            summary.add_entry(
-                synced_obj,
-                collides_with=collides_with,
-                skip=skip,
-            )
+                elif matched_remote_obj:
+                    remote_obj = matched_remote_obj[0]
+
+                synced_obj = SyncObject(file, remote_obj, remote_path=remote_path)
+                summary.add_entry(
+                    synced_obj,
+                    collides_with=collides_with,
+                    skip=skip,
+                )
 
         return summary
+
+    @staticmethod
+    def _should_skip(file: str, exclude_regex: Pattern, include_regex: Pattern):
+        if include_regex is not None and not include_regex.match(file):
+            log.debug(
+                f"Skipping {file} since it does not match regular expression '{include_regex}'."
+            )
+            return True
+        if exclude_regex is not None and exclude_regex.match(file):
+            log.debug(
+                f"Skipping {file} since it matches regular expression '{exclude_regex}'."
+            )
+            return True
+        return False
 
     @staticmethod
     def _handle_deprecated_path_regex(
@@ -874,10 +870,11 @@ class RemoteStorage:
         path_regex: Union[Pattern, str] = None,
     ) -> TransactionSummary:
         """
-        Upload a local file or directory into the remote storage.
+        Upload files into the remote storage.
         Does not upload files for which the md5sum matches existing remote files.
         The remote path for uploading will be constructed from the remote_base_path and the provided path.
-        The local_path_prefix serves for finding the directory on the local system.
+        The local_path_prefix serves for finding the directory on the local system or for stripping off
+        parts of absolute paths if path is absolute, see examples below.
 
         Examples:
            1) path=foo/bar, local_path_prefix=None -->
@@ -886,8 +883,10 @@ class RemoteStorage:
                 /home/foo/bar uploaded to remote_base_path/home/foo/bar
            3) path=bar, local_path_prefix=/home/foo -->
                 /home/foo/bar uploaded to remote_base_path/bar
-
-        Note that ``path`` may not be absolute if ``local_path_prefix`` is specified.
+           4) path=/home/foo/bar, local_path_prefix=/home/foo -->
+                /home/foo/bar uploaded to remote_base_path/bar (Same as 3)
+           5) path=/home/baz/bar, local_path_prefix=/home/foo -->
+                ValueError: Specified path=/home/baz/bar is not a child of local_path_prefix=/home/foo
 
         :param path: Path to the local object (file or directory) to be uploaded, may be absolute or relative.
             globs are supported as well, thus ``path`` may be a pattern like ``*.txt``.
@@ -895,10 +894,12 @@ class RemoteStorage:
         :param force: If False, push will raise an error if an already existing remote file deviates from the local
             in its md5sum. If True, these files are overwritten.
         :param include_regex: If not None, only files with paths matching the regex will be pushed.
+            Note that paths matched against the regex will be relative to ``local_path_prefix``.
         :param exclude_regex: If not None, only files with paths not matching the regex will be pushed. Takes precedence
             over ``include_regex``, i.e. if a file matches both regexes, it will be excluded.
+            Note that paths matched against the regex will be relative to ``local_path_prefix``.
         :param dryrun: If True, simulates the push operation and returns the summary
-            (with synced_files being an empty list). Same as get_push_summary method.
+            (with synced_files being an empty list).
         :param path_regex: DEPRECATED! Same as ``include_regex``.
         :return: An object describing the summary of the operation.
         """
