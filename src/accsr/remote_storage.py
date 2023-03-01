@@ -60,15 +60,15 @@ class _JsonReprMixin:
 
 @contextmanager
 def _switch_to_dir(path: str = None) -> bool:
-    if not path:
-        return
-
-    cur_dir = os.getcwd()
-    try:
-        os.chdir(path)
+    if path:
+        cur_dir = os.getcwd()
+        try:
+            os.chdir(path)
+            yield
+        finally:
+            os.chdir(cur_dir)
+    else:
         yield
-    finally:
-        os.chdir(cur_dir)
 
 
 class Provider(str, Enum):

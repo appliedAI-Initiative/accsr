@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from typing import Generator
 
 import pytest
@@ -137,6 +138,31 @@ class TestRemoteStorage:
             push_summary.synced_files[0].name.lstrip("/")
             == f"{base_path}/{test_filename}"
         )
+
+    @pytest.mark.parametrize(
+        "test_filename",
+        ["sample.txt"],
+        indirect=["test_filename"],
+    )
+    def test_push_file_local_path_prefix(self, storage, test_filename, test_resources):
+        push_summary = storage.push(test_filename, local_path_prefix=test_resources)
+        assert len(push_summary.synced_files) == 1
+        # Now same file with absolute path, should not need to push again
+        push_summary = storage.push(
+            Path(test_resources) / test_filename, local_path_prefix=test_resources
+        )
+        assert len(push_summary.synced_files) == 0
+
+    def test_push_file_local_path_prefix_and_glob(self, storage, test_resources):
+        test_filename = "s*le_2.txt"  # matches only sample_2.txt
+        push_summary = storage.push(test_filename, local_path_prefix=test_resources)
+        assert len(push_summary.synced_files) == 1
+        # Now same file with absolute path, should not need to push again
+        push_summary = storage.push(
+            Path(test_resources) / test_filename, local_path_prefix=test_resources
+        )
+        assert len(push_summary.synced_files) == 0
+        storage.delete("sample_2.txt")
 
     @pytest.mark.parametrize(
         "test_dirname",
