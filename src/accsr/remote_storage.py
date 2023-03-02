@@ -610,12 +610,15 @@ class RemoteStorage:
 
         if summary.requires_force and not force:
             raise FileExistsError(
-                f"Operation requires overwriting of objects but force=False"
+                f"Operation requires overwriting of objects but `force=False`. "
                 f"Suggestion: perform a dryrun and analyze the summary. "
                 f"Affected names: {[obj.name for obj in summary.on_target_neq_md5]}. "
             )
 
-        with tqdm(total=summary.size_files_to_sync(), desc="Progress (Bytes)") as pbar:
+        desc = f"{summary.sync_direction}ing (bytes)"
+        if force:
+            desc = "force " + desc
+        with tqdm(total=summary.size_files_to_sync(), desc=desc) as pbar:
             for sync_obj in summary.files_to_sync:
                 synced_obj = self._execute_sync(
                     sync_obj, direction=summary.sync_direction, force=force
@@ -822,7 +825,8 @@ class RemoteStorage:
                 )
 
             for file in tqdm(
-                all_files_analyzed, desc=f"Scanning files in {os.getcwd()}: "
+                all_files_analyzed,
+                desc=f"Scanning files in {os.path.join(os.getcwd(), path)}: ",
             ):
                 collides_with = None
                 remote_obj = None
