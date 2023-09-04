@@ -136,25 +136,23 @@ class TestRemoteStorage:
     def test_push_file_local_path_prefix(self, storage, test_resources):
         assert len(storage.list_objects("sample.txt")) == 0
         test_filename = "sample.txt"
-        test_resources = Path(test_resources).absolute()
         push_summary = storage.push(test_filename, local_path_prefix=test_resources)
         assert len(push_summary.synced_files) == 1
         # Now same file with absolute path, should not need to push again
         push_summary = storage.push(
-            test_resources / test_filename, local_path_prefix=test_resources
+            Path(test_resources) / test_filename, local_path_prefix=test_resources
         )
         assert len(push_summary.synced_files) == 0
         storage.delete(test_filename)
 
     def test_push_file_local_path_prefix_and_glob(self, storage, test_resources):
-        test_resources = Path(test_resources).absolute()
         test_filename = "s*le_2.txt"  # matches only sample_2.txt
         assert len(storage.list_objects("sample_2.txt")) == 0
         push_summary = storage.push(test_filename, local_path_prefix=test_resources)
         assert len(push_summary.synced_files) == 1
         # Now same file with absolute path, should not need to push again
         push_summary = storage.push(
-            test_resources / test_filename, local_path_prefix=test_resources
+            Path(test_resources) / test_filename, local_path_prefix=test_resources
         )
         assert len(push_summary.synced_files) == 0
         storage.delete("sample_2.txt")

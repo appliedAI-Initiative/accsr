@@ -762,7 +762,11 @@ class RemoteStorage:
         :param local_path: the local path to the file
         :return: the remote path that corresponds to the local path
         """
-        return "/".join([self.remote_base_path, local_path]).replace(os.sep, "/")
+        return (
+            "/".join([self.remote_base_path, local_path])
+            .replace(os.sep, "/")
+            .lstrip("/")
+        )
 
     def _get_push_summary(
         self,
