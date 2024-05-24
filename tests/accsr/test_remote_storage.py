@@ -189,6 +189,21 @@ class TestRemoteStorage:
         ["sample.txt"],
         indirect=["file_on_storage"],
     )
+    def test_pull_file_local_absolute_path(self, storage, file_on_storage, tmpdir):
+        local_base_dir = os.path.abspath(tmpdir.mkdir("remote_storage"))
+        pulled_file_abspath = os.path.join(local_base_dir, file_on_storage)
+        assert not os.path.exists(pulled_file_abspath)
+        storage.pull(
+            pulled_file_abspath,
+            local_base_dir=local_base_dir,
+        )
+        assert os.path.isfile(pulled_file_abspath)
+
+    @pytest.mark.parametrize(
+        "file_on_storage",
+        ["sample.txt"],
+        indirect=["file_on_storage"],
+    )
     def test_push_existing_file(self, storage, file_on_storage):
         assert len(storage.list_objects(file_on_storage)) == 1
         push_summary = storage.push(file_on_storage, force=False)

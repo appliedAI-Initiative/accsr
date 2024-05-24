@@ -648,12 +648,15 @@ class RemoteStorage:
         convert_to_linux_path: bool = True,
         dryrun: bool = False,
         path_regex: Optional[Union[Pattern, str]] = None,
+        strip_abspath_prefix: Optional[str] = None,
+        strip_abs_local_base_dir: bool = True,
     ) -> TransactionSummary:
         r"""
         Pull either a file or a directory under the given path relative to local_base_dir.
 
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
-            e.g. 'data/ground_truth/some_file.json'
+            e.g. 'data/ground_truth/some_file.json'. Can also be an absolute local path if ``strip_abspath_prefix``
+            is specified.
         :param local_base_dir: Local base directory for constructing local path
             e.g. passing 'local_base_dir' will download to the path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
@@ -669,8 +672,39 @@ class RemoteStorage:
             (which is discouraged).
         :param dryrun: If True, simulates the pull operation and returns the remote objects that would have been pulled.
         :param path_regex: DEPRECATED! Use ``include_regex`` instead.
+        :param strip_abspath_prefix: Will only have an effect if the `remote_path` is absolute.
+            Then the given prefix is removed from it before pulling. This is useful for pulling files from a remote storage
+            by directly specifying absolute local paths instead of first converting them to actual remote paths.
+            Similar in logic to `local_path_prefix` in `push`.
+            A common use case is to always set `local_base_dir` to the same value and to always pass absolute paths
+            as `remote_path` to `pull`.
+        :param strip_abs_local_base_dir: If True, and `local_base_dir` is an absolute path, then
+            the `local_base_dir` will be treated as `strip_abspath_prefix`. See explanation of `strip_abspath_prefix`.
         :return: An object describing the summary of the operation.
         """
+
+        if strip_abs_local_base_dir and os.path.isabs(local_base_dir):
+            if strip_abspath_prefix is not None:
+                raise ValueError(
+                    f"Cannot specify both `strip_abs_local_base_dir`={strip_abs_local_base_dir} "
+                    f"and `strip_abspath_prefix`={strip_abspath_prefix}"
+                    f"when `local_base_dir`={local_base_dir} is an absolute path."
+                )
+            strip_abspath_prefix = local_base_dir
+
+        remote_path_is_abs = remote_path.startswith("/") or os.path.isabs(remote_path)
+
+        if strip_abspath_prefix is not None and remote_path_is_abs:
+            remote_path = remote_path.replace("\\", "/")
+            strip_abspath_prefix = strip_abspath_prefix.replace("\\", "/").rstrip("/")
+            if not remote_path.startswith(strip_abspath_prefix):
+                raise ValueError(
+                    f"Remote path {remote_path} is absolute but does not start "
+                    f"with the given prefix {strip_abspath_prefix}"
+                )
+            # +1 for removing the leading '/'
+            remote_path = remote_path[len(strip_abspath_prefix) + 1 :]
+
         include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
         summary = self._get_pull_summary(
             remote_path,
@@ -921,7 +955,7 @@ class RemoteStorage:
         Upload files into the remote storage.
         Does not upload files for which the md5sum matches existing remote files.
         The remote path for uploading will be constructed from the remote_base_path and the provided path.
-        The local_path_prefix serves for finding the directory on the local system or for stripping off
+        The `local_path_prefix` serves for finding the directory on the local system or for stripping off
         parts of absolute paths if path is absolute, see examples below.
 
         Examples:
