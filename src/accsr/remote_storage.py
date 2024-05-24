@@ -11,17 +11,20 @@ from functools import cached_property
 from pathlib import Path
 from typing import (
     Dict,
+    Generator,
     List,
+    Literal,
     Optional,
     Pattern,
     Protocol,
     Sequence,
     Union,
+    cast,
     runtime_checkable,
 )
 
-import libcloud
 from libcloud.storage.base import Container, StorageDriver
+from libcloud.storage.providers import get_driver
 from libcloud.storage.types import (
     ContainerAlreadyExistsError,
     InvalidContainerNameError,
@@ -63,7 +66,7 @@ def _replace_driver_by_name(obj):
     # Since sometimes we want to be able to deepcopy these things around,
     # we replace the driver by its name. This is needed for `asdict` to work.
     if isinstance(obj, RemoteObjectProtocol) and hasattr(obj, "driver"):
-        obj.driver = obj.driver.name
+        obj.driver = obj.driver.name  # type: ignore
     if isinstance(obj, list) or isinstance(obj, tuple):
         for item in obj:
             _replace_driver_by_name(item)
@@ -81,7 +84,7 @@ class _JsonReprMixin:
 
 
 @contextmanager
-def _switch_to_dir(path: str = None) -> bool:
+def _switch_to_dir(path: Optional[str] = None) -> Generator[None, None, None]:
     if path:
         cur_dir = os.getcwd()
         try:
@@ -128,9 +131,9 @@ class SyncObject(_JsonReprMixin):
 
     def __init__(
         self,
-        local_path: str = None,
-        remote_obj: RemoteObjectProtocol = None,
-        remote_path: str = None,
+        local_path: Optional[str] = None,
+        remote_obj: Optional[RemoteObjectProtocol] = None,
+        remote_path: Optional[str] = None,
     ):
         if remote_path is not None:
             remote_path = remote_path.lstrip("/")
@@ -161,8 +164,13 @@ class SyncObject(_JsonReprMixin):
                 raise ValueError(f"Either remote_path or remote_obj should be not None")
             self.remote_path = remote_obj.name
 
-        self.local_size = os.path.getsize(local_path) if self.exists_locally else 0
-        self.local_hash = md5sum(local_path) if self.exists_locally else None
+        if self.exists_locally:
+            assert self.local_path is not None
+            self.local_size = os.path.getsize(self.local_path)
+            self.local_hash = md5sum(self.local_path)
+        else:
+            self.local_size = 0
+            self.local_hash = None
 
     @property
     def name(self):
@@ -261,7 +269,7 @@ class TransactionSummary(_JsonReprMixin):
     skipped_source_files: List[SyncObject] = field(default_factory=list)
 
     synced_files: List[SyncObject] = field(default_factory=list)
-    sync_direction: Optional[str] = None
+    sync_direction: Optional[Literal["push", "pull"]] = None
 
     def __post_init__(self):
         if self.sync_direction not in ["pull", "push", None]:
@@ -377,9 +385,9 @@ class RemoteStorageConfig:
     key: str
     bucket: str
     secret: str = field(repr=False)
-    region: str = None
-    host: str = None
-    port: int = None
+    region: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
     base_path: str = ""
     secure: bool = True
 
@@ -455,13 +463,11 @@ class RemoteStorage:
 
     @cached_property
     def driver(self) -> StorageDriver:
-        storage_driver_factory = libcloud.get_driver(
-            libcloud.DriverType.STORAGE, self.provider
-        )
+        storage_driver_factory = get_driver(self.provider)
         return storage_driver_factory(**self.driver_kwargs)
 
     def _execute_sync(
-        self, sync_object: SyncObject, direction: str, force=False
+        self, sync_object: SyncObject, direction: Literal["push", "pull"], force=False
     ) -> SyncObject:
         """
         Synchronizes the local and the remote file in the given direction. Will raise an error if a file from the source
@@ -475,10 +481,6 @@ class RemoteStorage:
             will be overwritten.
         :return: a SyncObject that represents the status of remote and target after the synchronization
         """
-        if direction not in ["push", "pull"]:
-            raise ValueError(
-                f"Unknown direction {direction}, has to be either 'push' or 'pull'."
-            )
         if sync_object.equal_md5_hash_sum:
             log.debug(
                 f"Skipping {direction} of {sync_object.name} because of coinciding hash sums"
@@ -495,11 +497,14 @@ class RemoteStorage:
                 raise FileNotFoundError(
                     f"Cannot push non-existing file: {sync_object.local_path}"
                 )
-            # noinspection PyTypeChecker
-            remote_obj: RemoteObjectProtocol = self.bucket.upload_object(
-                sync_object.local_path,
-                sync_object.remote_path,
-                verify_hash=False,
+            assert sync_object.local_path is not None
+            remote_obj = cast(
+                RemoteObjectProtocol,
+                self.bucket.upload_object(
+                    sync_object.local_path,
+                    sync_object.remote_path,
+                    verify_hash=False,
+                ),
             )
             return SyncObject(sync_object.local_path, remote_obj)
 
@@ -508,6 +513,7 @@ class RemoteStorage:
                 raise RuntimeError(
                     f"Cannot pull without remote object and local path. Affects: {sync_object.name}"
                 )
+            assert sync_object.local_path is not None
             if os.path.isdir(sync_object.local_path):
                 raise FileExistsError(
                     f"Cannot pull file to a path which is an existing directory: {sync_object.local_path}"
@@ -519,6 +525,10 @@ class RemoteStorage:
                 sync_object.local_path, overwrite_existing=force
             )
             return SyncObject(sync_object.local_path, sync_object.remote_obj)
+        else:
+            raise ValueError(
+                f"Unknown direction {direction}, has to be either 'push' or 'pull'."
+            )
 
     @staticmethod
     def _get_remote_path(remote_obj: RemoteObjectProtocol) -> str:
@@ -620,6 +630,7 @@ class RemoteStorage:
             desc = "force " + desc
         with tqdm(total=summary.size_files_to_sync(), desc=desc) as pbar:
             for sync_obj in summary.files_to_sync:
+                assert summary.sync_direction is not None
                 synced_obj = self._execute_sync(
                     sync_obj, direction=summary.sync_direction, force=force
                 )
@@ -630,19 +641,22 @@ class RemoteStorage:
     def pull(
         self,
         remote_path: str,
-        local_base_dir="",
-        force=False,
-        include_regex: Union[Pattern, str] = None,
-        exclude_regex: Union[Pattern, str] = None,
-        convert_to_linux_path=True,
-        dryrun=False,
-        path_regex: Union[Pattern, str] = None,
+        local_base_dir: str = "",
+        force: bool = False,
+        include_regex: Optional[Union[Pattern, str]] = None,
+        exclude_regex: Optional[Union[Pattern, str]] = None,
+        convert_to_linux_path: bool = True,
+        dryrun: bool = False,
+        path_regex: Optional[Union[Pattern, str]] = None,
+        strip_abspath_prefix: Optional[str] = None,
+        strip_abs_local_base_dir: bool = True,
     ) -> TransactionSummary:
         r"""
         Pull either a file or a directory under the given path relative to local_base_dir.
 
         :param remote_path: remote path on storage bucket relative to the configured remote base path.
-            e.g. 'data/ground_truth/some_file.json'
+            e.g. 'data/ground_truth/some_file.json'. Can also be an absolute local path if ``strip_abspath_prefix``
+            is specified.
         :param local_base_dir: Local base directory for constructing local path
             e.g. passing 'local_base_dir' will download to the path
             'local_base_dir/data/ground_truth/some_file.json' in the above example
@@ -658,8 +672,39 @@ class RemoteStorage:
             (which is discouraged).
         :param dryrun: If True, simulates the pull operation and returns the remote objects that would have been pulled.
         :param path_regex: DEPRECATED! Use ``include_regex`` instead.
+        :param strip_abspath_prefix: Will only have an effect if the `remote_path` is absolute.
+            Then the given prefix is removed from it before pulling. This is useful for pulling files from a remote storage
+            by directly specifying absolute local paths instead of first converting them to actual remote paths.
+            Similar in logic to `local_path_prefix` in `push`.
+            A common use case is to always set `local_base_dir` to the same value and to always pass absolute paths
+            as `remote_path` to `pull`.
+        :param strip_abs_local_base_dir: If True, and `local_base_dir` is an absolute path, then
+            the `local_base_dir` will be treated as `strip_abspath_prefix`. See explanation of `strip_abspath_prefix`.
         :return: An object describing the summary of the operation.
         """
+
+        if strip_abs_local_base_dir and os.path.isabs(local_base_dir):
+            if strip_abspath_prefix is not None:
+                raise ValueError(
+                    f"Cannot specify both `strip_abs_local_base_dir`={strip_abs_local_base_dir} "
+                    f"and `strip_abspath_prefix`={strip_abspath_prefix}"
+                    f"when `local_base_dir`={local_base_dir} is an absolute path."
+                )
+            strip_abspath_prefix = local_base_dir
+
+        remote_path_is_abs = remote_path.startswith("/") or os.path.isabs(remote_path)
+
+        if strip_abspath_prefix is not None and remote_path_is_abs:
+            remote_path = remote_path.replace("\\", "/")
+            strip_abspath_prefix = strip_abspath_prefix.replace("\\", "/").rstrip("/")
+            if not remote_path.startswith(strip_abspath_prefix):
+                raise ValueError(
+                    f"Remote path {remote_path} is absolute but does not start "
+                    f"with the given prefix {strip_abspath_prefix}"
+                )
+            # +1 for removing the leading '/'
+            remote_path = remote_path[len(strip_abspath_prefix) + 1 :]
+
         include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
         summary = self._get_pull_summary(
             remote_path,
@@ -684,11 +729,11 @@ class RemoteStorage:
     def _get_pull_summary(
         self,
         remote_path: str,
-        local_base_dir="",
-        include_regex: Union[Pattern, str] = None,
-        exclude_regex: Union[Pattern, str] = None,
-        convert_to_linux_path=True,
-        path_regex: Union[Pattern, str] = None,
+        local_base_dir: str = "",
+        include_regex: Optional[Union[Pattern, str]] = None,
+        exclude_regex: Optional[Union[Pattern, str]] = None,
+        convert_to_linux_path: bool = True,
+        path_regex: Optional[Union[Pattern, str]] = None,
     ) -> TransactionSummary:
         r"""
         Creates TransactionSummary of the specified pull operation.
@@ -721,8 +766,8 @@ class RemoteStorage:
         summary = TransactionSummary(sync_direction="pull")
         full_remote_path = self._full_remote_path(remote_path)
         # noinspection PyTypeChecker
-        remote_objects: List[RemoteObjectProtocol] = list(
-            self.bucket.list_objects(full_remote_path)
+        remote_objects = cast(
+            List[RemoteObjectProtocol], list(self.bucket.list_objects(full_remote_path))
         )
 
         for obj in tqdm(
@@ -837,10 +882,13 @@ class RemoteStorage:
                 skip = self._should_skip(file, include_regex, exclude_regex)
 
                 remote_path = self.get_push_remote_path(file)
-                # noinspection PyTypeChecker
+
+                all_matched_remote_obj = cast(
+                    List[RemoteObjectProtocol], self.bucket.list_objects(remote_path)
+                )
                 matched_remote_obj = [
                     obj
-                    for obj in self.bucket.list_objects(remote_path)
+                    for obj in all_matched_remote_obj
                     if not self._listed_due_to_name_collision(remote_path, obj)
                 ]
 
@@ -850,7 +898,6 @@ class RemoteStorage:
 
                 elif matched_remote_obj:
                     remote_obj = matched_remote_obj[0]
-
                 synced_obj = SyncObject(file, remote_obj, remote_path=remote_path)
                 summary.add_entry(
                     synced_obj,
@@ -861,7 +908,9 @@ class RemoteStorage:
         return summary
 
     @staticmethod
-    def _should_skip(file: str, include_regex: Pattern, exclude_regex: Pattern):
+    def _should_skip(
+        file: str, include_regex: Optional[Pattern], exclude_regex: Optional[Pattern]
+    ):
         if include_regex is not None and not include_regex.match(file):
             log.debug(
                 f"Skipping {file} since it does not match regular expression '{include_regex}'."
@@ -895,18 +944,18 @@ class RemoteStorage:
     def push(
         self,
         path: str,
-        local_path_prefix: str = None,
+        local_path_prefix: Optional[str] = None,
         force: bool = False,
-        include_regex: Union[Pattern, str] = None,
-        exclude_regex: Union[Pattern, str] = None,
+        include_regex: Optional[Union[Pattern, str]] = None,
+        exclude_regex: Optional[Union[Pattern, str]] = None,
         dryrun: bool = False,
-        path_regex: Union[Pattern, str] = None,
+        path_regex: Optional[Union[Pattern, str]] = None,
     ) -> TransactionSummary:
         """
         Upload files into the remote storage.
         Does not upload files for which the md5sum matches existing remote files.
         The remote path for uploading will be constructed from the remote_base_path and the provided path.
-        The local_path_prefix serves for finding the directory on the local system or for stripping off
+        The `local_path_prefix` serves for finding the directory on the local system or for stripping off
         parts of absolute paths if path is absolute, see examples below.
 
         Examples:
@@ -948,9 +997,9 @@ class RemoteStorage:
     def delete(
         self,
         remote_path: str,
-        include_regex: Union[Pattern, str] = None,
-        exclude_regex: Union[Pattern, str] = None,
-        path_regex: Union[Pattern, str] = None,
+        include_regex: Optional[Union[Pattern, str]] = None,
+        exclude_regex: Optional[Union[Pattern, str]] = None,
+        path_regex: Optional[Union[Pattern, str]] = None,
     ) -> List[RemoteObjectProtocol]:
         """
         Deletes a file or a directory under the given path relative to local_base_dir. Use with caution!
@@ -968,7 +1017,9 @@ class RemoteStorage:
 
         full_remote_path = self._full_remote_path(remote_path)
 
-        remote_objects = self.bucket.list_objects(full_remote_path)
+        remote_objects = cast(
+            List[RemoteObjectProtocol], self.bucket.list_objects(full_remote_path)
+        )
         if len(remote_objects) == 0:
             log.warning(
                 f"No such remote file or directory: {full_remote_path}. Not deleting anything"
@@ -976,8 +1027,6 @@ class RemoteStorage:
             return []
         deleted_objects = []
         for remote_obj in remote_objects:
-            remote_obj: RemoteObjectProtocol
-
             if self._listed_due_to_name_collision(full_remote_path, remote_obj):
                 log.debug(
                     f"Skipping deletion of {remote_obj.name} as it was listed due to name collision"
@@ -992,8 +1041,7 @@ class RemoteStorage:
                 log.info(f"Skipping {relative_obj_path} due to regex {exclude_regex}")
                 continue
             log.debug(f"Deleting {remote_obj.name}")
-            # noinspection PyTypeChecker
-            self.bucket.delete_object(remote_obj)
+            self.bucket.delete_object(remote_obj)  # type: ignore
             deleted_objects.append(remote_obj)
         return deleted_objects
 
@@ -1003,5 +1051,4 @@ class RemoteStorage:
         :return: list of remote objects under the remote path (multiple entries if the remote path is a directory)
         """
         full_remote_path = self._full_remote_path(remote_path)
-        # noinspection PyTypeChecker
-        return self.bucket.list_objects(full_remote_path)
+        return self.bucket.list_objects(full_remote_path)  # type: ignore
