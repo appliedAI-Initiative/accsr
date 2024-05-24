@@ -1,4 +1,4 @@
-# Release Notes: 0.4.7
+# Release Notes: 0.4.8-dev0
 
 ## Bugfix release
 - Fixed bugs in RemoteStorage related to name collisions and serialization.
