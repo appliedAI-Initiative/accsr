@@ -10,6 +10,8 @@ from enum import Enum
 from functools import cached_property
 from pathlib import Path
 from typing import (
+    Any,
+    Callable,
     Dict,
     Generator,
     List,
@@ -18,6 +20,7 @@ from typing import (
     Pattern,
     Protocol,
     Sequence,
+    Tuple,
     Union,
     cast,
     runtime_checkable,
@@ -134,7 +137,17 @@ class SyncObject(_JsonReprMixin):
         local_path: Optional[str] = None,
         remote_obj: Optional[RemoteObjectProtocol] = None,
         remote_path: Optional[str] = None,
+        remote_obj_overridden_md5_hash: Optional[int] = None,
     ):
+        """
+        :param local_path: path to the local file
+        :param remote_obj: remote object
+        :param remote_path: path to the remote file (always in linux style)
+        :param remote_obj_overridden_md5_hash: if not None, the hash of the remote object is overridden by this value,
+            otherwise the hash attribute of the remote object is used.
+            Setting this might be useful for Azure blob storage, as uploads to may be chunked, and the md5 hash of the
+            remote object becomes different from the hash of the local file.
+        """
         if remote_path is not None:
             remote_path = remote_path.lstrip("/")
         if remote_obj is not None:
@@ -172,6 +185,13 @@ class SyncObject(_JsonReprMixin):
             self.local_size = 0
             self.local_hash = None
 
+        if remote_obj_overridden_md5_hash is not None:
+            self.remote_hash = remote_obj_overridden_md5_hash
+        elif remote_obj is not None:
+            self.remote_hash = remote_obj.hash
+        else:
+            self.remote_hash = None
+
     @property
     def name(self):
         return self.remote_path
@@ -205,7 +225,7 @@ class SyncObject(_JsonReprMixin):
     @property
     def equal_md5_hash_sum(self):
         if self.exists_on_target:
-            return self.local_hash == self.remote_obj.hash
+            return self.local_hash == self.remote_hash
         return False
 
     def to_dict(self, make_serializable=True):
@@ -395,10 +415,27 @@ class RemoteStorageConfig:
 class RemoteStorage:
     """
     Wrapper around lib-cloud for accessing remote storage services.
-    :param conf:
     """
 
-    def __init__(self, conf: RemoteStorageConfig):
+    def __init__(
+        self,
+        conf: RemoteStorageConfig,
+        add_extra_to_upload: Optional[Callable[[SyncObject], dict]] = None,
+        remote_hash_extractor: Optional[Callable[[RemoteObjectProtocol], int]] = None,
+    ):
+        """
+        :param conf: configuration for the remote storage
+        :param add_extra_to_upload: a function that takes a `SyncObject` and returns a dictionary with extra parameters
+            that should be passed to the `upload_object` method of the storage driver as value of the `extra` kwarg.
+            This can be used to set custom metadata or other parameters. For example, for Azure blob storage, one can
+            set the hash of the local file as metadata by using
+            `add_extra_to_upload = lambda sync_object: {"meta_data": {"md5": sync_object.local_hash}}`.
+        :param remote_hash_extractor: a function that extracts the hash from a `RemoteObjectProtocol` object.
+            This is useful for Azure blob storage, as uploads to may be chunked, and the md5 hash of the remote object
+            becomes different from the hash of the local file. In that case, one can add the hash of the local file
+            to the metadata using `add_extra_to_upload`, and then use this function to extract the hash from the
+            remote object. If not set, the `hash` attribute of the `RemoteObjectProtocol` object is used.
+        """
         self._bucket: Optional[Container] = None
         self._conf = conf
         self._provider = conf.provider
@@ -415,6 +452,8 @@ class RemoteStorage:
         self.driver_kwargs = {
             k: v for k, v in possible_driver_kwargs.items() if v is not None
         }
+        self.add_extra_to_upload = add_extra_to_upload
+        self.remote_hash_extractor = remote_hash_extractor
 
     def create_bucket(self, exist_ok: bool = True):
         try:
@@ -498,11 +537,18 @@ class RemoteStorage:
                     f"Cannot push non-existing file: {sync_object.local_path}"
                 )
             assert sync_object.local_path is not None
+
+            extra = (
+                self.add_extra_to_upload(sync_object)
+                if self.add_extra_to_upload is not None
+                else None
+            )
             remote_obj = cast(
                 RemoteObjectProtocol,
                 self.bucket.upload_object(
                     sync_object.local_path,
                     sync_object.remote_path,
+                    extra=extra,
                     verify_hash=False,
                 ),
             )
@@ -770,32 +816,45 @@ class RemoteStorage:
             List[RemoteObjectProtocol], list(self.bucket.list_objects(full_remote_path))
         )
 
-        for obj in tqdm(
+        for remote_obj in tqdm(
             remote_objects,
             desc=f"Scanning remote paths in {self.bucket.name}/{full_remote_path}: ",
         ):
             local_path = None
             collides_with = None
-            if (obj.size == 0) or (
-                self._listed_due_to_name_collision(full_remote_path, obj)
+            if (remote_obj.size == 0) or (
+                self._listed_due_to_name_collision(full_remote_path, remote_obj)
             ):
                 log.debug(
-                    f"Skipping {obj.name} since it was listed due to name collisions"
+                    f"Skipping {remote_obj.name} since it was listed due to name collisions"
                 )
                 skip = True
             else:
-                relative_obj_path = self._get_relative_remote_path(obj)
+                relative_obj_path = self._get_relative_remote_path(remote_obj)
                 skip = self._should_skip(
                     relative_obj_path, include_regex, exclude_regex
                 )
 
             if not skip:
-                local_path = self._get_destination_path(obj, local_base_dir)
+                local_path = self._get_destination_path(remote_obj, local_base_dir)
                 if os.path.isdir(local_path):
                     collides_with = local_path
 
+            remote_obj_overridden_md5_hash = (
+                self.remote_hash_extractor(remote_obj)
+                if self.remote_hash_extractor is not None
+                else None
+            )
+            sync_obj = SyncObject(
+                local_path=local_path,
+                remote_obj=remote_obj,
+                remote_obj_overridden_md5_hash=remote_obj_overridden_md5_hash,
+            )
+
             summary.add_entry(
-                SyncObject(local_path, obj), skip=skip, collides_with=collides_with
+                SyncObject(local_path, remote_obj),
+                skip=skip,
+                collides_with=collides_with,
             )
 
         return summary
@@ -898,7 +957,17 @@ class RemoteStorage:
 
                 elif matched_remote_obj:
                     remote_obj = matched_remote_obj[0]
-                synced_obj = SyncObject(file, remote_obj, remote_path=remote_path)
+                remote_obj_overridden_md5_hash = (
+                    self.remote_hash_extractor(remote_obj)
+                    if self.remote_hash_extractor is not None
+                    else None
+                )
+                synced_obj = SyncObject(
+                    local_path=file,
+                    remote_obj=remote_obj,
+                    remote_path=remote_path,
+                    remote_obj_overridden_md5_hash=remote_obj_overridden_md5_hash,
+                )
                 summary.add_entry(
                     synced_obj,
                     collides_with=collides_with,
