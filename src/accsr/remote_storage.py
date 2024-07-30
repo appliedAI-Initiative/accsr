@@ -143,10 +143,11 @@ class SyncObject(_JsonReprMixin):
         :param local_path: path to the local file
         :param remote_obj: remote object
         :param remote_path: path to the remote file (always in linux style)
-        :param remote_obj_overridden_md5_hash: if not None, the hash of the remote object is overridden by this value,
-            otherwise the hash attribute of the remote object is used.
-            Setting this might be useful for Azure blob storage, as uploads to may be chunked, and the md5 hash of the
-            remote object becomes different from the hash of the local file.
+        :param remote_obj_overridden_md5_hash: pass this to override the hash of the remote object
+            (by default, the hash attribute of the remote object is used).
+            Setting this might be useful for Azure blob storage, as uploads to it may be chunked,
+            and the md5 hash of the remote object becomes different from the hash of the local file.
+            The hash is used to check if the local and remote files are equal.
         """
         if remote_path is not None:
             remote_path = remote_path.lstrip("/")
