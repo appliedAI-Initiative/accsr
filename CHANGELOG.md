@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.8
+- Extended `RemoteStorage` to support adding `extra` to uploaded objects, as well as
+customizing the extraction of the remote hash. This is especially useful for azure blobs
+storage, since there the attribute `.hash` of the remote object doesn't coincide
+with the md5 hash of the local file. Using the extra and retrieving the hash from the
+metadata allows to circumvent this issue.
+
+
+## 0.4.7
+ - In `RemoteStorage` now absolute paths can be passed to pull to reference a remote_path. The most convenient way of using this new option is to always pass an absolute path as local_base_path
+- 
+
 ## 0.4.4
 - Fixed bugs in RemoteStorage related to name collisions and serialization.
 - Enhanced tests for RemoteStorage
