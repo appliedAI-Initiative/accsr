@@ -187,6 +187,10 @@ class SyncObject(_JsonReprMixin):
             self.local_hash = None
 
         if remote_obj_overridden_md5_hash is not None:
+            if remote_obj is None:
+                raise ValueError(
+                    "remote_obj_overridden_md5_hash can only be set if remote_obj is not None"
+                )
             self.remote_hash = remote_obj_overridden_md5_hash
         elif remote_obj is not None:
             self.remote_hash = remote_obj.hash
@@ -360,7 +364,7 @@ class TransactionSummary(_JsonReprMixin):
         :return: None
         """
         if isinstance(synced_object, str):
-            synced_object = SyncObject(synced_object)
+            synced_object = SyncObject(local_path=synced_object)
         if skip:
             self.skipped_source_files.append(synced_object)
         else:
@@ -553,7 +557,16 @@ class RemoteStorage:
                     verify_hash=False,
                 ),
             )
-            return SyncObject(sync_object.local_path, remote_obj)
+
+            if self.remote_hash_extractor is not None:
+                remote_obj_overridden_md5_hash = self.remote_hash_extractor(remote_obj)
+            else:
+                remote_obj_overridden_md5_hash = None
+            return SyncObject(
+                sync_object.local_path,
+                remote_obj,
+                remote_obj_overridden_md5_hash=remote_obj_overridden_md5_hash,
+            )
 
         elif direction == "pull":
             if None in [sync_object.remote_obj, sync_object.local_path]:
@@ -853,7 +866,7 @@ class RemoteStorage:
             )
 
             summary.add_entry(
-                SyncObject(local_path, remote_obj),
+                sync_obj,
                 skip=skip,
                 collides_with=collides_with,
             )
@@ -960,7 +973,7 @@ class RemoteStorage:
                     remote_obj = matched_remote_obj[0]
                 remote_obj_overridden_md5_hash = (
                     self.remote_hash_extractor(remote_obj)
-                    if self.remote_hash_extractor is not None
+                    if self.remote_hash_extractor is not None and remote_obj is not None
                     else None
                 )
                 synced_obj = SyncObject(
