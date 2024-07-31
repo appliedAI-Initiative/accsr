@@ -102,6 +102,7 @@ def _switch_to_dir(path: Optional[str] = None) -> Generator[None, None, None]:
 class Provider(str, Enum):
     GOOGLE_STORAGE = "google_storage"
     S3 = "s3"
+    AZURE_BLOBS = "azure_blobs"
 
 
 @runtime_checkable
@@ -114,7 +115,7 @@ class RemoteObjectProtocol(Protocol):
     name: str
     size: int
     hash: int
-    provider: str
+    provider: Union[Provider, str]
 
     def download(
         self, download_path, overwrite_existing=False
