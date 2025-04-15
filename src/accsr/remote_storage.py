@@ -10,7 +10,6 @@ from enum import Enum
 from functools import cached_property
 from pathlib import Path
 from typing import (
-    Any,
     Callable,
     Dict,
     Generator,
@@ -19,7 +18,6 @@ from typing import (
     Optional,
     Pattern,
     Protocol,
-    Sequence,
     Tuple,
     Union,
     cast,
@@ -234,6 +232,37 @@ class SyncObject(_JsonReprMixin):
             return self.local_hash == self.remote_hash
         return False
 
+    def get_size(self, mode: Literal["push", "pull", "local", "remote"]) -> int:
+        """
+        :param mode: the transfer mode (either 'local'/'push' or 'remote'/'pull')
+        :return: the size in bytes
+        """
+        local_modes = ["local", "push"]
+        remote_modes = ["remote", "pull"]
+        if mode in local_modes:
+            if not self.exists_locally:
+                raise FileNotFoundError(
+                    f"Cannot retrieve size of non-existing file: {self.local_path}"
+                )
+            return self.local_size
+        elif mode in remote_modes:
+            if self.remote_obj is None:
+                raise FileNotFoundError(
+                    f"Cannot retrieve size of non-existing remote object corresponding to: {self.local_path}"
+                )
+            return self.remote_obj.size
+        else:
+            raise ValueError(
+                f"Unknown mode: {mode}. Has to be in {remote_modes + local_modes}."
+            )
+
+    def get_size_in_transaction(self, transaction_summary: "TransactionSummary") -> int:
+        """
+        :param transaction_summary: the transaction this object is part of
+        :return: the size in bytes (to be) transferred
+        """
+        return transaction_summary.get_transferred_bytes(self)
+
     def to_dict(self, make_serializable=True):
         result = copy(self.__dict__)
         if make_serializable:
@@ -243,35 +272,6 @@ class SyncObject(_JsonReprMixin):
         result["exists_on_target"] = self.exists_on_target
         result["equal_md5_hash_sum"] = self.equal_md5_hash_sum
         return result
-
-
-def _get_total_size(objects: Sequence[SyncObject], mode="local"):
-    """
-    Computes the total size of the objects either on the local or on the remote side.
-    :param objects: The SyncObjects for which the size should be computed
-    :param mode: either 'local' or 'remote'
-    :return: the total size of the objects on the specified side
-    """
-    permitted_modes = ["local", "remote"]
-    if mode not in permitted_modes:
-        raise ValueError(f"Unknown mode: {mode}. Has to be in {permitted_modes}.")
-    if len(objects) == 0:
-        return 0
-
-    def get_size(obj: SyncObject):
-        if mode == "local":
-            if not obj.exists_locally:
-                raise FileNotFoundError(
-                    f"Cannot retrieve size of non-existing file: {obj.local_path}"
-                )
-            return obj.local_size
-        if obj.remote_obj is None:
-            raise FileNotFoundError(
-                f"Cannot retrieve size of non-existing remote object corresponding to: {obj.local_path}"
-            )
-        return obj.remote_obj.size
-
-    return sum([get_size(obj) for obj in objects])
 
 
 @dataclass(repr=False)
@@ -320,12 +320,18 @@ class TransactionSummary(_JsonReprMixin):
         :return: the total size of all local objects that need synchronization if self.sync_direction='push' and
             the size of all remote files that need synchronization if self.sync_direction='pull'
         """
-        if self.sync_direction not in ["push", "pull"]:
-            raise RuntimeError(
-                "sync_direction has to be set to push or pull before computing sizes"
-            )
-        mode = "local" if self.sync_direction == "push" else "remote"
-        return _get_total_size(self.files_to_sync, mode=mode)
+        assert (
+            self.sync_direction is not None
+        ), "sync_direction has to be set before sizes can be computed"
+        return sum(obj.get_size(self.sync_direction) for obj in self.files_to_sync)
+
+    def get_transferred_bytes(self, sync_object: SyncObject) -> int:
+        """
+        :param sync_object: the sync object to compute the size for
+        :return: the number of bytes to be transferred for the given object
+        """
+        assert self.sync_direction is not None
+        return sync_object.get_size(self.sync_direction)
 
     @property
     def requires_force(self) -> bool:
@@ -416,6 +422,15 @@ class RemoteStorageConfig:
     port: Optional[int] = None
     base_path: str = ""
     secure: bool = True
+    use_pbar: bool = True
+    """
+    whether to use progress bars which are printed to stderr.
+    If set to False, progress will instead be logged at the log level specified in :attr:`log_level` 
+    """
+    log_level: int = logging.INFO
+    """
+    level at which to log progress for the case where `use_pbar` is disabled.
+    """
 
 
 class RemoteStorage:
@@ -512,7 +527,12 @@ class RemoteStorage:
         return storage_driver_factory(**self.driver_kwargs)
 
     def _execute_sync(
-        self, sync_object: SyncObject, direction: Literal["push", "pull"], force=False
+        self,
+        sync_object: SyncObject,
+        file_count: Tuple[int, int],
+        direction: Literal["push", "pull"],
+        force=False,
+        use_pbar: Optional[bool] = None,
     ) -> SyncObject:
         """
         Synchronizes the local and the remote file in the given direction. Will raise an error if a file from the source
@@ -521,14 +541,18 @@ class RemoteStorage:
 
         :param sync_object: instance of SyncObject that will be used as basis for synchronization. Usually
             created from a get_*_summary method.
+        :param file_count: a tuple (n, total) indicating sync progress in terms of files (n-th file of total files)
         :param direction: either "push" or "pull"
         :param force: if True, all already existing files on the target (with a different md5sum than the source files)
             will be overwritten.
+        :param use_pbar: If not None, overrides the configured default value for this flag.
+            Specifically, if True, will use a progress bar for the pull operation; if False, will use logging.
         :return: a SyncObject that represents the status of remote and target after the synchronization
         """
         if sync_object.equal_md5_hash_sum:
-            log.debug(
-                f"Skipping {direction} of {sync_object.name} because of coinciding hash sums"
+            self._log(
+                f"Skipping {direction} of {sync_object.name} (already up-to-date)",
+                use_pbar,
             )
             return sync_object
 
@@ -536,6 +560,8 @@ class RemoteStorage:
             raise ValueError(
                 f"Cannot perform {direction} because {sync_object.name} already exists and force is False"
             )
+
+        sync_object_str = f"{sync_object.name} ({self._readable_size(sync_object.get_size(direction))})"
 
         if direction == "push":
             if not sync_object.exists_locally:
@@ -548,6 +574,12 @@ class RemoteStorage:
                 self.add_extra_to_upload(sync_object)
                 if self.add_extra_to_upload is not None
                 else None
+            )
+
+            # do upload
+            self._log(
+                f"Uploading file {file_count[0]}/{file_count[1]} to {self.bucket.name}: {sync_object_str}",
+                use_pbar,
             )
             remote_obj = cast(
                 RemoteObjectProtocol,
@@ -580,11 +612,17 @@ class RemoteStorage:
                     f"Cannot pull file to a path which is an existing directory: {sync_object.local_path}"
                 )
 
-            log.debug(f"Fetching {sync_object.remote_obj.name} from {self.bucket.name}")
             os.makedirs(os.path.dirname(sync_object.local_path), exist_ok=True)
+
+            # do download
+            self._log(
+                f"Downloading file {file_count[0]}/{file_count[1]} from {self.bucket.name}: {sync_object_str}",
+                use_pbar,
+            )
             sync_object.remote_obj.download(
                 sync_object.local_path, overwrite_existing=force
             )
+
             return SyncObject(sync_object.local_path, sync_object.remote_obj)
         else:
             raise ValueError(
@@ -648,8 +686,39 @@ class RemoteStorage:
         is_selected_file = object_remote_path == full_remote_path
         return not (is_in_selected_dir or is_selected_file)
 
+    def _log(self, msg: str, use_pbar: Optional[bool]) -> None:
+        """
+        Logs the given message, provided that logging is enabled (progress bar is disabled).
+        """
+        if use_pbar is None:
+            use_pbar = self.conf.use_pbar
+        if not use_pbar:
+            log.log(self.conf.log_level, msg)
+
+    @staticmethod
+    def _readable_size(num_bytes: int) -> str:
+        if num_bytes < 1000:
+            return f"{num_bytes} B"
+        elif num_bytes < 1000**2:
+            return f"{round(num_bytes / 1000)} kB"
+        elif num_bytes < 1000**3:
+            return f"{num_bytes / 1000 ** 2:.1f} MB"
+        else:
+            return f"{num_bytes / 1000 ** 3:.2f} GB"
+
+    def _pbar(
+        self, iterable=None, total=None, desc=None, enabled: Optional[bool] = None
+    ):
+        if enabled is None:
+            enabled = self.conf.use_pbar
+        return tqdm(iterable=iterable, total=total, desc=desc, disable=not enabled)
+
     def _execute_sync_from_summary(
-        self, summary: TransactionSummary, dryrun: bool = False, force: bool = False
+        self,
+        summary: TransactionSummary,
+        dryrun: bool = False,
+        force: bool = False,
+        use_pbar: Optional[bool] = None,
     ) -> TransactionSummary:
         """
         Executes a transaction summary.
@@ -657,6 +726,8 @@ class RemoteStorage:
         :param dryrun: if True, logs any error that would have prevented the execution and returns the summary
             without actually executing the sync.
         :param force: raises an error if dryrun=False and any files would be overwritten by the sync
+        :param use_pbar: If not None, overrides the configured default value for this flag.
+            Specifically, if True, will use a progress bar for the pull operation; if False, will use logging.
         :return: Returns the input transaction summary. Note that the function potentially alters the state of the
             input summary.
         """
@@ -686,17 +757,27 @@ class RemoteStorage:
                 f"Affected names: {[obj.name for obj in summary.on_target_neq_md5]}. "
             )
 
-        desc = f"{summary.sync_direction}ing (bytes)"
-        if force:
-            desc = "force " + desc
-        with tqdm(total=summary.size_files_to_sync(), desc=desc) as pbar:
-            for sync_obj in summary.files_to_sync:
-                assert summary.sync_direction is not None
-                synced_obj = self._execute_sync(
-                    sync_obj, direction=summary.sync_direction, force=force
-                )
-                pbar.update(synced_obj.local_size)
-                summary.synced_files.append(synced_obj)
+        total_files = len(summary.files_to_sync)
+        if total_files == 0:
+            self._log("No files to be updated", use_pbar)
+        else:
+            desc = f"{summary.sync_direction}ing (bytes)"
+            if force:
+                desc = "force " + desc
+            with self._pbar(
+                total=summary.size_files_to_sync(), desc=desc, enabled=use_pbar
+            ) as pbar:
+                for cnt, sync_obj in enumerate(summary.files_to_sync, start=1):
+                    assert summary.sync_direction is not None
+                    synced_obj = self._execute_sync(
+                        sync_obj,
+                        file_count=(cnt, total_files),
+                        direction=summary.sync_direction,
+                        force=force,
+                        use_pbar=use_pbar,
+                    )
+                    pbar.update(synced_obj.local_size)
+                    summary.synced_files.append(synced_obj)
         return summary
 
     def pull(
@@ -711,6 +792,7 @@ class RemoteStorage:
         path_regex: Optional[Union[Pattern, str]] = None,
         strip_abspath_prefix: Optional[str] = None,
         strip_abs_local_base_dir: bool = True,
+        use_pbar: Optional[bool] = None,
     ) -> TransactionSummary:
         r"""
         Pull either a file or a directory under the given path relative to local_base_dir.
@@ -741,6 +823,8 @@ class RemoteStorage:
             as `remote_path` to `pull`.
         :param strip_abs_local_base_dir: If True, and `local_base_dir` is an absolute path, then
             the `local_base_dir` will be treated as `strip_abspath_prefix`. See explanation of `strip_abspath_prefix`.
+        :param use_pbar: If not None, overrides the configured default value for this flag.
+            Specifically, if True, will use a progress bar for the pull operation; if False, will use logging.
         :return: An object describing the summary of the operation.
         """
 
@@ -766,6 +850,7 @@ class RemoteStorage:
             # +1 for removing the leading '/'
             remote_path = remote_path[len(strip_abspath_prefix) + 1 :]
 
+        # scan files to determine required operations
         include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
         summary = self._get_pull_summary(
             remote_path,
@@ -773,10 +858,15 @@ class RemoteStorage:
             include_regex=include_regex,
             exclude_regex=exclude_regex,
             convert_to_linux_path=convert_to_linux_path,
+            use_pbar=use_pbar,
         )
         if len(summary.all_files_analyzed) == 0:
             log.warning(f"No files found in remote storage under path: {remote_path}")
-        return self._execute_sync_from_summary(summary, dryrun=dryrun, force=force)
+
+        # perform the actual synchronisation
+        return self._execute_sync_from_summary(
+            summary, dryrun=dryrun, force=force, use_pbar=use_pbar
+        )
 
     def _get_destination_path(
         self, obj: RemoteObjectProtocol, local_base_dir: str
@@ -795,6 +885,7 @@ class RemoteStorage:
         exclude_regex: Optional[Union[Pattern, str]] = None,
         convert_to_linux_path: bool = True,
         path_regex: Optional[Union[Pattern, str]] = None,
+        use_pbar: Optional[bool] = None,
     ) -> TransactionSummary:
         r"""
         Creates TransactionSummary of the specified pull operation.
@@ -831,9 +922,10 @@ class RemoteStorage:
             List[RemoteObjectProtocol], list(self.bucket.list_objects(full_remote_path))
         )
 
-        for remote_obj in tqdm(
-            remote_objects,
-            desc=f"Scanning remote paths in {self.bucket.name}/{full_remote_path}: ",
+        msg = f"Scanning remote paths in {self.bucket.name}/{full_remote_path}"
+        self._log(msg, use_pbar)
+        for remote_obj in self._pbar(
+            iterable=remote_objects, desc=f"{msg}: ", enabled=use_pbar
         ):
             local_path = None
             collides_with = None
@@ -894,6 +986,7 @@ class RemoteStorage:
         include_regex: Optional[Union[Pattern, str]] = None,
         exclude_regex: Optional[Union[Pattern, str]] = None,
         path_regex: Optional[Union[Pattern, str]] = None,
+        use_pbar: Optional[bool] = None,
     ) -> TransactionSummary:
         """
         Retrieves the summary of the push-transaction plan, before it has been executed.
@@ -947,9 +1040,12 @@ class RemoteStorage:
                     f"No files found under {path=} with {local_path_prefix=}"
                 )
 
-            for file in tqdm(
-                all_files_analyzed,
-                desc=f"Scanning files in {os.path.join(os.getcwd(), path)}: ",
+            msg = f"Scanning files in {os.path.join(os.getcwd(), path)}"
+            self._log(msg, use_pbar)
+            for file in self._pbar(
+                iterable=all_files_analyzed,
+                desc=f"{msg}: ",
+                enabled=use_pbar,
             ):
                 collides_with = None
                 remote_obj = None
@@ -1034,6 +1130,7 @@ class RemoteStorage:
         exclude_regex: Optional[Union[Pattern, str]] = None,
         dryrun: bool = False,
         path_regex: Optional[Union[Pattern, str]] = None,
+        use_pbar: Optional[bool] = None,
     ) -> TransactionSummary:
         """
         Upload files into the remote storage.
@@ -1067,6 +1164,8 @@ class RemoteStorage:
         :param dryrun: If True, simulates the push operation and returns the summary
             (with synced_files being an empty list).
         :param path_regex: DEPRECATED! Same as ``include_regex``.
+        :param use_pbar: If not None, overrides the configured default value for this flag.
+            Specifically, if True, will use a progress bar for the pull operation; if False, will use logging.
         :return: An object describing the summary of the operation.
         """
         include_regex = self._handle_deprecated_path_regex(include_regex, path_regex)
@@ -1075,8 +1174,11 @@ class RemoteStorage:
             local_path_prefix,
             include_regex=include_regex,
             exclude_regex=exclude_regex,
+            use_pbar=use_pbar,
         )
-        return self._execute_sync_from_summary(summary, dryrun=dryrun, force=force)
+        return self._execute_sync_from_summary(
+            summary, dryrun=dryrun, force=force, use_pbar=use_pbar
+        )
 
     def delete(
         self,

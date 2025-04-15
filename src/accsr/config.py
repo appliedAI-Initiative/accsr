@@ -30,7 +30,6 @@ data-driven project is below. For a non-data driven project, the configuration c
 
 """
 
-
 import inspect
 import json
 import logging.handlers
