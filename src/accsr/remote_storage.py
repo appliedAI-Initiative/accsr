@@ -126,20 +126,21 @@ class SyncObject(_JsonReprMixin):
     Class representing the sync-status between a local path and a remote object. Is mainly used for creating
     summaries and syncing within RemoteStorage and for introspection before and after push/pull transactions.
 
-    It is not recommended creating or manipulate instances of this class outside RemoteStorage, in particular
+    It is not recommended creating or manipulating instances of this class outside RemoteStorage, in particular
     in user code. This class forms part of the public interface because instances of it are given to users for
     introspection.
     """
 
     def __init__(
         self,
+        sync_direction: Literal["push", "pull"],
         local_path: Optional[str] = None,
         remote_obj: Optional[RemoteObjectProtocol] = None,
         remote_path: Optional[str] = None,
         remote_obj_overridden_md5_hash: Optional[int] = None,
-        sync_direction: Optional[Literal["push", "pull"]] = None,
     ):
         """
+        :param sync_direction: the synchronisation direction
         :param local_path: path to the local file
         :param remote_obj: remote object
         :param remote_path: path to the remote file (always in linux style)
@@ -148,7 +149,6 @@ class SyncObject(_JsonReprMixin):
             Setting this might be useful for Azure blob storage, as uploads to it may be chunked,
             and the md5 hash of the remote object becomes different from the hash of the local file.
             The hash is used to check if the local and remote files are equal.
-        :param sync_direction: the synchronisation direction
         """
         self.sync_direction = sync_direction
         if remote_path is not None:
@@ -239,10 +239,6 @@ class SyncObject(_JsonReprMixin):
         """
         :return: the number of bytes (to be) transferred for this object
         """
-        if self.sync_direction is None:
-            raise ValueError(
-                "Bytes to be transferred cannot be determined without a sync direction"
-            )
         if self.sync_direction == "push":
             if not self.exists_locally:
                 raise FileNotFoundError(
@@ -256,7 +252,9 @@ class SyncObject(_JsonReprMixin):
                 )
             return self.remote_obj.size
         else:
-            raise ValueError(f"Unknown sync direction: {self.sync_direction}.")
+            raise RuntimeError(
+                f"Unknown sync direction: {self.sync_direction}. Can only be push or pull. This is likely a bug!"
+            )
 
     def to_dict(self, make_serializable=True):
         result = copy(self.__dict__)
@@ -578,10 +576,10 @@ class RemoteStorage:
             else:
                 remote_obj_overridden_md5_hash = None
             return SyncObject(
-                sync_object.local_path,
-                remote_obj,
-                remote_obj_overridden_md5_hash=remote_obj_overridden_md5_hash,
                 sync_direction=sync_object.sync_direction,
+                local_path=sync_object.local_path,
+                remote_obj=remote_obj,
+                remote_obj_overridden_md5_hash=remote_obj_overridden_md5_hash,
             )
 
         elif direction == "pull":
@@ -607,9 +605,9 @@ class RemoteStorage:
             )
 
             return SyncObject(
-                sync_object.local_path,
-                sync_object.remote_obj,
                 sync_direction=sync_object.sync_direction,
+                local_path=sync_object.local_path,
+                remote_obj=sync_object.remote_obj,
             )
         else:
             raise ValueError(
@@ -951,10 +949,10 @@ class RemoteStorage:
                 else None
             )
             sync_obj = SyncObject(
+                sync_direction="pull",
                 local_path=local_path,
                 remote_obj=remote_obj,
                 remote_obj_overridden_md5_hash=remote_obj_overridden_md5_hash,
-                sync_direction="pull",
             )
 
             summary.add_entry(
@@ -1073,11 +1071,11 @@ class RemoteStorage:
                     else None
                 )
                 synced_obj = SyncObject(
+                    sync_direction="push",
                     local_path=file,
                     remote_obj=remote_obj,
                     remote_path=remote_path,
                     remote_obj_overridden_md5_hash=remote_obj_overridden_md5_hash,
-                    sync_direction="push",
                 )
                 summary.add_entry(
                     synced_obj,
