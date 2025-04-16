@@ -241,7 +241,7 @@ class SyncObject(_JsonReprMixin):
         """
         if self.sync_direction is None:
             raise ValueError(
-                "Bytes to be transferred cannot be determined with a sync direction"
+                "Bytes to be transferred cannot be determined without a sync direction"
             )
         if self.sync_direction == "push":
             if not self.exists_locally:
