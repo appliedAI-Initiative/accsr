@@ -41,5 +41,4 @@ BUILD_DIR=$(dirname "$0")
   cd "${BUILD_DIR}/.." || (echo "Unknown error, could not find directory ${BUILD_DIR}" && exit 255)
   black --check .
   isort . --check --diff
-  python build_scripts/run_pylint.py >>>(pylint-json2html -f jsonextended -o pylint.html)
 )

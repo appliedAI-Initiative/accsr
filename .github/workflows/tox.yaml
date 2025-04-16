@@ -14,11 +14,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # problems with ubuntu 24.04
+    # https://github.com/actions/setup-python/issues/1053
+    runs-on: ubuntu-22.04
     # This is needed to enable host name resolution for the minio service from the tests
-    #https://docs.github.com/en/actions/using-containerized-services/about-service-containers#mapping-docker-host-and-service-container-ports
+    # https://docs.github.com/en/actions/using-containerized-services/about-service-containers#mapping-docker-host-and-service-container-ports
     # https://docs.github.com/en/actions/using-containerized-services/creating-redis-service-containers#running-jobs-in-containers
-    container: python:3.8-slim-buster
+    container: python:3.11
     services:
       remote-storage:
         image: bitnami/minio:latest
@@ -35,7 +37,7 @@ jobs:
         run: apt-get update -yq && apt-get -yq install pandoc git git-lfs rsync
       - name: Safe directory workaround
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/checkout@v2.3.1
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: true
@@ -51,11 +53,11 @@ jobs:
           git fetch origin develop:develop --update-head-ok
           git merge develop
       - name: Setup Python 3.8
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.11"
       - name: Cache tox envs and pip packages
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
