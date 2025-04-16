@@ -694,11 +694,22 @@ class RemoteStorage:
             return f"{num_bytes / 1000 ** 3:.2f} GB"
 
     def _pbar(
-        self, iterable=None, total=None, desc=None, enabled: Optional[bool] = None
+        self,
+        iterable=None,
+        total=None,
+        desc=None,
+        enabled: Optional[bool] = None,
+        unit_scale=True,
     ):
         if enabled is None:
             enabled = self.conf.use_pbar
-        return tqdm(iterable=iterable, total=total, desc=desc, disable=not enabled)
+        return tqdm(
+            iterable=iterable,
+            total=total,
+            desc=desc,
+            disable=not enabled,
+            unit_scale=unit_scale,
+        )
 
     def _execute_sync_from_summary(
         self,
