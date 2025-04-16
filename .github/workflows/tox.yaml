@@ -18,7 +18,7 @@ jobs:
     # This is needed to enable host name resolution for the minio service from the tests
     #https://docs.github.com/en/actions/using-containerized-services/about-service-containers#mapping-docker-host-and-service-container-ports
     # https://docs.github.com/en/actions/using-containerized-services/creating-redis-service-containers#running-jobs-in-containers
-    container: python:3.8-slim-buster
+    container: python:3.11-slim-buster
     services:
       remote-storage:
         image: bitnami/minio:latest
@@ -53,7 +53,7 @@ jobs:
       - name: Setup Python 3.8
         uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.11"
       - name: Cache tox envs and pip packages
         uses: actions/cache@v4
         with:
