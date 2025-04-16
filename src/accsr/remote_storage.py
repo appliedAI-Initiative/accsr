@@ -137,6 +137,7 @@ class SyncObject(_JsonReprMixin):
         remote_obj: Optional[RemoteObjectProtocol] = None,
         remote_path: Optional[str] = None,
         remote_obj_overridden_md5_hash: Optional[int] = None,
+        sync_direction: Optional[Literal["push", "pull"]] = None,
     ):
         """
         :param local_path: path to the local file
@@ -147,7 +148,9 @@ class SyncObject(_JsonReprMixin):
             Setting this might be useful for Azure blob storage, as uploads to it may be chunked,
             and the md5 hash of the remote object becomes different from the hash of the local file.
             The hash is used to check if the local and remote files are equal.
+        :param sync_direction: the synchronisation direction
         """
+        self.sync_direction = sync_direction
         if remote_path is not None:
             remote_path = remote_path.lstrip("/")
         if remote_obj is not None:
@@ -232,36 +235,28 @@ class SyncObject(_JsonReprMixin):
             return self.local_hash == self.remote_hash
         return False
 
-    def get_size(self, mode: Literal["push", "pull", "local", "remote"]) -> int:
+    def get_bytes_transferred(self) -> int:
         """
-        :param mode: the transfer mode (either 'local'/'push' or 'remote'/'pull')
-        :return: the size in bytes
+        :return: the number of bytes (to be) transferred for this object
         """
-        local_modes = ["local", "push"]
-        remote_modes = ["remote", "pull"]
-        if mode in local_modes:
+        if self.sync_direction is None:
+            raise ValueError(
+                "Bytes to be transferred cannot be determined with a sync direction"
+            )
+        if self.sync_direction == "push":
             if not self.exists_locally:
                 raise FileNotFoundError(
                     f"Cannot retrieve size of non-existing file: {self.local_path}"
                 )
             return self.local_size
-        elif mode in remote_modes:
+        elif self.sync_direction == "pull":
             if self.remote_obj is None:
                 raise FileNotFoundError(
                     f"Cannot retrieve size of non-existing remote object corresponding to: {self.local_path}"
                 )
             return self.remote_obj.size
         else:
-            raise ValueError(
-                f"Unknown mode: {mode}. Has to be in {remote_modes + local_modes}."
-            )
-
-    def get_size_in_transaction(self, transaction_summary: "TransactionSummary") -> int:
-        """
-        :param transaction_summary: the transaction this object is part of
-        :return: the size in bytes (to be) transferred
-        """
-        return transaction_summary.get_transferred_bytes(self)
+            raise ValueError(f"Unknown sync direction: {self.sync_direction}.")
 
     def to_dict(self, make_serializable=True):
         result = copy(self.__dict__)
@@ -320,18 +315,7 @@ class TransactionSummary(_JsonReprMixin):
         :return: the total size of all local objects that need synchronization if self.sync_direction='push' and
             the size of all remote files that need synchronization if self.sync_direction='pull'
         """
-        assert (
-            self.sync_direction is not None
-        ), "sync_direction has to be set before sizes can be computed"
-        return sum(obj.get_size(self.sync_direction) for obj in self.files_to_sync)
-
-    def get_transferred_bytes(self, sync_object: SyncObject) -> int:
-        """
-        :param sync_object: the sync object to compute the size for
-        :return: the number of bytes to be transferred for the given object
-        """
-        assert self.sync_direction is not None
-        return sync_object.get_size(self.sync_direction)
+        return sum(obj.get_bytes_transferred() for obj in self.files_to_sync)
 
     @property
     def requires_force(self) -> bool:
@@ -359,7 +343,7 @@ class TransactionSummary(_JsonReprMixin):
 
     def add_entry(
         self,
-        synced_object: Union[SyncObject, str],
+        synced_object: SyncObject,
         collides_with: Optional[Union[List[RemoteObjectProtocol], str]] = None,
         skip: bool = False,
     ):
@@ -370,8 +354,6 @@ class TransactionSummary(_JsonReprMixin):
         :param skip: if True, the object is marked to be skipped
         :return: None
         """
-        if isinstance(synced_object, str):
-            synced_object = SyncObject(local_path=synced_object)
         if skip:
             self.skipped_source_files.append(synced_object)
         else:
@@ -561,7 +543,7 @@ class RemoteStorage:
                 f"Cannot perform {direction} because {sync_object.name} already exists and force is False"
             )
 
-        sync_object_str = f"{sync_object.name} ({self._readable_size(sync_object.get_size(direction))})"
+        sync_object_str = f"{sync_object.name} ({self._readable_size(sync_object.get_bytes_transferred())})"
 
         if direction == "push":
             if not sync_object.exists_locally:
@@ -599,6 +581,7 @@ class RemoteStorage:
                 sync_object.local_path,
                 remote_obj,
                 remote_obj_overridden_md5_hash=remote_obj_overridden_md5_hash,
+                sync_direction=sync_object.sync_direction,
             )
 
         elif direction == "pull":
@@ -623,7 +606,11 @@ class RemoteStorage:
                 sync_object.local_path, overwrite_existing=force
             )
 
-            return SyncObject(sync_object.local_path, sync_object.remote_obj)
+            return SyncObject(
+                sync_object.local_path,
+                sync_object.remote_obj,
+                sync_direction=sync_object.sync_direction,
+            )
         else:
             raise ValueError(
                 f"Unknown direction {direction}, has to be either 'push' or 'pull'."
@@ -956,6 +943,7 @@ class RemoteStorage:
                 local_path=local_path,
                 remote_obj=remote_obj,
                 remote_obj_overridden_md5_hash=remote_obj_overridden_md5_hash,
+                sync_direction="pull",
             )
 
             summary.add_entry(
@@ -1078,6 +1066,7 @@ class RemoteStorage:
                     remote_obj=remote_obj,
                     remote_path=remote_path,
                     remote_obj_overridden_md5_hash=remote_obj_overridden_md5_hash,
+                    sync_direction="push",
                 )
                 summary.add_entry(
                     synced_obj,
