@@ -18,9 +18,9 @@ jobs:
     # https://github.com/actions/setup-python/issues/1053
     runs-on: ubuntu-22.04
     # This is needed to enable host name resolution for the minio service from the tests
-    #https://docs.github.com/en/actions/using-containerized-services/about-service-containers#mapping-docker-host-and-service-container-ports
+    # https://docs.github.com/en/actions/using-containerized-services/about-service-containers#mapping-docker-host-and-service-container-ports
     # https://docs.github.com/en/actions/using-containerized-services/creating-redis-service-containers#running-jobs-in-containers
-    container: python:3.11-slim-buster
+    container: python:3.11
     services:
       remote-storage:
         image: bitnami/minio:latest
