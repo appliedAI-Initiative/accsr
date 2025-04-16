@@ -35,7 +35,7 @@ jobs:
         run: apt-get update -yq && apt-get -yq install pandoc git git-lfs rsync
       - name: Safe directory workaround
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/checkout@v2.3.1
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: true
@@ -51,7 +51,7 @@ jobs:
           git fetch origin develop:develop --update-head-ok
           git merge develop
       - name: Setup Python 3.8
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: "3.8"
       - name: Cache tox envs and pip packages
