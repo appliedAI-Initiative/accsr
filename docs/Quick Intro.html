@@ -1,0 +1,506 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Intro to accsr &mdash; accsr 0.4.10-dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/nbsphinx-code-cells.css?v=2aa19091" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=34efaeff"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Modules" href="accsr/index.html" />
+    <link rel="prev" title="accsr" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            accsr
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides and Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Intro to accsr</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#The-configuration-module">The configuration module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Setting-up-configuration-providers">Setting up configuration providers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#Loading-configuration-from-files">Loading configuration from files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Including-environment-variables">Including environment variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Default-Configurations">Default Configurations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#The-RemoteStorage-facilities">The RemoteStorage facilities</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="accsr/index.html">Modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">accsr</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Intro to accsr</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Quick Intro.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">load_ext</span> autoreload
+<span class="o">%</span><span class="k">autoreload</span> 2
+</pre></div>
+</div>
+</div>
+<section id="Intro-to-accsr">
+<h1>Intro to accsr<a class="headerlink" href="#Intro-to-accsr" title="Link to this heading"></a></h1>
+<p>The goal of <code class="docutils literal notranslate"><span class="pre">accsr</span></code> is to simplify programmatic access to data on disc and in remote storage in python. We often found ourselves repeating the same lines of code for pulling something from a bucket, loading a file from a tar archive or creating a configuration module for storing paths to existing or to-be-loaded files. <code class="docutils literal notranslate"><span class="pre">accsr</span></code> allows doing all this directly from python, without relying on a cli or external tools.</p>
+<p>One of the design goals of accsr is to allow the users to use the same code for loading data and configuration, independently of the state of the local file system.</p>
+<p>For example, a developer with all data already loaded who wants to perform an experiment with some extended data set, would load the configuration with <code class="docutils literal notranslate"><span class="pre">get_config()</span></code>, instantiate a <code class="docutils literal notranslate"><span class="pre">RemoteStorage</span></code> object and call <code class="docutils literal notranslate"><span class="pre">pull()</span></code> to download any missing data from the remote storage. If no data is missing, nothing will be downloaded, thus creating no overhead.</p>
+<p>A user who does not have the data locally, would also call <code class="docutils literal notranslate"><span class="pre">get_config()</span></code>, (possibly using a different <code class="docutils literal notranslate"><span class="pre">config_local.json</span></code> file, with different access keys or namespaces), and then als call <code class="docutils literal notranslate"><span class="pre">pull()</span></code> with the same code. The data will be downloaded from the remote storage and stored locally.</p>
+<p>Thus, the code will never need to change between development, testing and deployment, and unnecessary overhead for loading data is reduced as much as possible.</p>
+<p>This approach also makes it easy to collaborate on data sets with the same code-base, and avoid stepping on each other’s toes by accident.</p>
+<section id="The-configuration-module">
+<h2>The configuration module<a class="headerlink" href="#The-configuration-module" title="Link to this heading"></a></h2>
+<p>The configuration module provides utilities for reading configuration from a hierarchy of files and customizing access to them. Let us look at some use case examples for this.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">accsr.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConfigProviderBase</span><span class="p">,</span> <span class="n">DefaultDataConfiguration</span><span class="p">,</span> <span class="n">ConfigurationBase</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">accsr.remote_storage</span><span class="w"> </span><span class="kn">import</span> <span class="n">RemoteStorage</span><span class="p">,</span> <span class="n">RemoteStorageConfig</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+</pre></div>
+</div>
+</div>
+<section id="Setting-up-configuration-providers">
+<h3>Setting up configuration providers<a class="headerlink" href="#Setting-up-configuration-providers" title="Link to this heading"></a></h3>
+<p>The recommended way of using <code class="docutils literal notranslate"><span class="pre">accsr</span></code>’s configuration utils is to create a module called <code class="docutils literal notranslate"><span class="pre">config.py</span></code> within your project and setup classes and methods for managing and providing configuration. In the cell below we show a minimal example of such a file.</p>
+<p>Under the hood the config provider is reading out the <code class="docutils literal notranslate"><span class="pre">__Configuration</span></code> class from generics at runtime and makes sure that only one global instance of your custom <code class="docutils literal notranslate"><span class="pre">__Configuration</span></code> exists in memory. Don’t worry if you are unfamiliar with the coding patterns used here - you don’t need to understand them to use the config utils. You will probably never need to adjust the <code class="docutils literal notranslate"><span class="pre">ConfigProvider</span></code> related code.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">__Configuration</span><span class="p">(</span><span class="n">ConfigurationBase</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ConfigProvider</span><span class="p">(</span><span class="n">ConfigProviderBase</span><span class="p">[</span><span class="n">__Configuration</span><span class="p">]):</span>
+    <span class="k">pass</span>
+
+
+<span class="n">_config_provider</span> <span class="o">=</span> <span class="n">ConfigProvider</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_config</span><span class="p">(</span>
+    <span class="n">reload</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">config_files</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;config.json&quot;</span><span class="p">,</span> <span class="s2">&quot;config_local.json&quot;</span><span class="p">)</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">__Configuration</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :param reload: if True, the configuration will be reloaded from the json files</span>
+<span class="sd">    :param config_files: the list of files to load the configuration from</span>
+<span class="sd">    :return: the configuration instance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_config_provider</span><span class="o">.</span><span class="n">get_config</span><span class="p">(</span><span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">,</span> <span class="n">config_files</span><span class="o">=</span><span class="n">config_files</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+<section id="Loading-configuration-from-files">
+<h2>Loading configuration from files<a class="headerlink" href="#Loading-configuration-from-files" title="Link to this heading"></a></h2>
+<p>We found the following workflow useful for managing configuration files:</p>
+<ol class="arabic simple">
+<li><p>Create a <code class="docutils literal notranslate"><span class="pre">config.json</span></code> file in the root of your project. This file should contain all the default configuration and be committed to version control.</p></li>
+<li><p>Create a <code class="docutils literal notranslate"><span class="pre">config_local.json</span></code> file in the root of your project with the user-specific configuration. This file should not be committed to version control. It does not need to contain all the configuration, only the parts that are different from the default configuration.</p></li>
+</ol>
+<p><strong>NOTE</strong>: Yaml files are also permitted, but by default the configuration is read from the two json files mentioned above. You can freely mix yaml and json and define your own hierarchy by passing <code class="docutils literal notranslate"><span class="pre">config_files</span></code>, so for example passing <code class="docutils literal notranslate"><span class="pre">config_files=(&quot;config.json&quot;,</span> <span class="pre">&quot;config_local.yaml&quot;)</span></code> is allowed.</p>
+<p>A typical use case is to have default configuration for the <code class="docutils literal notranslate"><span class="pre">RemoteStorage</span></code> in <code class="docutils literal notranslate"><span class="pre">config.json</span></code> and to have secrets (like the access key and secret), as well as a user-specific base path in <code class="docutils literal notranslate"><span class="pre">config_local.json</span></code>. In this way, multiple users can use the same code for loading data while still being able to experiment on their own data sets - for example storing these data sets in the same bucket but in different namespaces.</p>
+<p>Another use case is to include a read-only access key in <code class="docutils literal notranslate"><span class="pre">config.json</span></code>, which is then distributed to users in version-control, and a read-write access key in <code class="docutils literal notranslate"><span class="pre">config_local.json</span></code> for the developers who need to update data.</p>
+<section id="Including-environment-variables">
+<h3>Including environment variables<a class="headerlink" href="#Including-environment-variables" title="Link to this heading"></a></h3>
+<p>One can tell the configuration to read the value off an environment variable instead of writing the value directly to the file. This is useful for example for running code in CI, where it might be easier to adjust environment variables instead of files (for example, while Gitlab CI offers file-type secrets, there is no such feature in GitHub actions at the time of writing).</p>
+<p>For instructing to read off the value from the env, simply prepend “env:” to the configured value, e.g. if your <code class="docutils literal notranslate"><span class="pre">config.json</span></code> looks as</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;configured_val&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;fixed_value&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;from_env_var&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;env:MY_ENV_VAR&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>then implementing the configuration as</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">__Configuration</span><span class="p">(</span><span class="n">ConfigurationBase</span><span class="p">):</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">configured_val</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_not</span><span class="p">(</span><span class="s2">&quot;configured_val&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>will result in the value of the property being read at <strong>runtime</strong> from the environment variable <code class="docutils literal notranslate"><span class="pre">MY_ENV_VAR</span></code>. Thus, changing the value of the environment variable will change the value of the property. This is in contrast to not-env-var values, which are read at config-loading time and will only change when the config is reloaded.</p>
+</section>
+<section id="Default-Configurations">
+<h3>Default Configurations<a class="headerlink" href="#Default-Configurations" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">accsr</span></code> includes a default implementation of the <code class="docutils literal notranslate"><span class="pre">ConfigurationBase</span></code> class meant for typical ML and data-driven projects. To use this, simply inherit from <code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration</span></code> instead of <code class="docutils literal notranslate"><span class="pre">ConfigurationBase</span></code>. The resulting configuration class will have some default properties and methods for managing paths to data.</p>
+</section>
+</section>
+<section id="The-RemoteStorage-facilities">
+<h2>The RemoteStorage facilities<a class="headerlink" href="#The-RemoteStorage-facilities" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">accsr</span></code> makes it easy to interact with data stored in a remote blob storage, like S3, Google Storage, Azure Storage or similar. The <code class="docutils literal notranslate"><span class="pre">RemoteStorage</span></code> implements a git-like logic and uses <code class="docutils literal notranslate"><span class="pre">apache-libcloud</span></code> underneath.</p>
+<p>In order to demonstrate the RemoteStorage functionality, we will start <a class="reference external" href="https://min.io/">minIO</a>, an object store with S3 interface, using docker compose. We also switch to the tests directory where the docker-compose file and some resource files for testing have been prepared.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">notebooks_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span>
+<span class="n">tests_dir</span> <span class="o">=</span> <span class="n">notebooks_dir</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;tests&quot;</span> <span class="o">/</span> <span class="s2">&quot;accsr&quot;</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">tests_dir</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;CI&quot;</span><span class="p">):</span>
+    <span class="c1"># In CI, we start the minIO container separately</span>
+    <span class="o">!</span>docker-compose<span class="w"> </span>up<span class="w"> </span>-d
+    <span class="n">host</span> <span class="o">=</span> <span class="s2">&quot;localhost&quot;</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">host</span> <span class="o">=</span> <span class="s2">&quot;remote-storage&quot;</span>
+
+<span class="n">port</span> <span class="o">=</span> <span class="mi">9001</span>
+<span class="n">api_port</span> <span class="o">=</span> <span class="mi">9000</span>
+</pre></div>
+</div>
+</div>
+<p>We now should have minio up and running.</p>
+<p>Now we can instantiate a RemoteStorage object and interact with minIO.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">remote_storage_config</span> <span class="o">=</span> <span class="n">RemoteStorageConfig</span><span class="p">(</span>
+    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;s3&quot;</span><span class="p">,</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;minio-root-user&quot;</span><span class="p">,</span>
+    <span class="n">secret</span><span class="o">=</span><span class="s2">&quot;minio-root-password&quot;</span><span class="p">,</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;accsr-demo&quot;</span><span class="p">,</span>
+    <span class="n">base_path</span><span class="o">=</span><span class="s2">&quot;my_remote_dir&quot;</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
+    <span class="n">port</span><span class="o">=</span><span class="n">api_port</span><span class="p">,</span>
+    <span class="n">secure</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">storage</span> <span class="o">=</span> <span class="n">RemoteStorage</span><span class="p">(</span><span class="n">remote_storage_config</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">base_path</span></code> is a “directory” (or rather a namespace) within the bucket. All calls to the storage object will only affect files in the <code class="docutils literal notranslate"><span class="pre">base_path</span></code>.</p>
+<p>The bucket itself does not exist yet, so let us create it. This has to be done by the user explicitly, to prevent accidental costs. Of course, if the configuration is pointing to an existing bucket, this step is not necessary.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">storage</span><span class="o">.</span><span class="n">create_bucket</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<p>Now we can push, pull, list and generally interact with objects inside <code class="docutils literal notranslate"><span class="pre">base_path</span></code> within the bucket. Let us first push the resources directory to have something to start with.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">pull</span></code> and <code class="docutils literal notranslate"><span class="pre">push</span></code> commands will return a summary of the transaction with the bucket. If the flag <code class="docutils literal notranslate"><span class="pre">dryrun=True</span></code> is specified, then the transaction is only computed but not executed - a good way to make sure that you are doing what is desired before actually interacting with data.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dry_run_summary</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">,</span> <span class="n">dryrun</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Here the dryrun summary: &quot;</span><span class="p">)</span>
+<span class="n">dry_run_summary</span><span class="o">.</span><span class="n">print_short_summary</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Scanning files in /__w/accsr/accsr/tests/accsr/resources: 100%|██████████| 11.0/11.0 [00:00&lt;00:00, 189it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Here the dryrun summary:
+{
+  &#34;sync_direction&#34;: &#34;push&#34;,
+  &#34;files_to_sync&#34;: 11,
+  &#34;total_size&#34;: 599,
+  &#34;unresolvable_collisions&#34;: 0,
+  &#34;synced_files&#34;: 0
+}
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<p>The summary shows that we would push multiple files with this call if we remove the dryrun flag. Every detail of the transaction can be retrieved from the summary object.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">local_files_checked</span> <span class="o">=</span> <span class="n">dry_run_summary</span><span class="o">.</span><span class="n">matched_source_files</span>
+<span class="n">would_be_pushed</span> <span class="o">=</span> <span class="n">dry_run_summary</span><span class="o">.</span><span class="n">not_on_target</span>
+<span class="n">pushed_files</span> <span class="o">=</span> <span class="n">dry_run_summary</span><span class="o">.</span><span class="n">synced_files</span>
+
+<span class="nb">print</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">&quot;Out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">local_files_checked</span><span class="p">)</span><span class="si">}</span><span class="s2"> files that we found inside the &#39;resources&#39; dir, &quot;</span>
+    <span class="sa">f</span><span class="s2">&quot;we would push </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">would_be_pushed</span><span class="p">)</span><span class="si">}</span><span class="s2">. In the last transaction </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">pushed_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> files were synced.&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Out of 11 files that we found inside the &#39;resources&#39; dir, we would push 11. In the last transaction 0 files were synced.
+</pre></div></div>
+</div>
+<p>Now let us actually perform the push</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">push_and_print</span><span class="p">():</span>
+    <span class="n">push_summary</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;resources&quot;</span><span class="p">)</span>
+    <span class="n">local_files_checked</span> <span class="o">=</span> <span class="n">push_summary</span><span class="o">.</span><span class="n">matched_source_files</span>
+    <span class="n">pushed_files</span> <span class="o">=</span> <span class="n">push_summary</span><span class="o">.</span><span class="n">synced_files</span>
+
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">local_files_checked</span><span class="p">)</span><span class="si">}</span><span class="s2"> files that we found inside the &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;&#39;resources&#39; dir, we pushed </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">pushed_files</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">push_and_print</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Scanning files in /__w/accsr/accsr/tests/accsr/resources: 100%|██████████| 11.0/11.0 [00:00&lt;00:00, 506it/s]
+pushing (bytes): 100%|██████████| 599/599 [00:00&lt;00:00, 18.0kit/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Out of 11 files that we found inside the &#39;resources&#39; dir, we pushed 11.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<p>If we now push again, no new files will be synced. This holds even if <code class="docutils literal notranslate"><span class="pre">force=True</span></code> is specified, because the hashes are equal. The flag <code class="docutils literal notranslate"><span class="pre">force=True</span></code> is useful if there are collisions in file names for files with different hashes. In that case, a transaction will fail and nothing will be executed, much like with git. This is useful to avoid uncertain state, where a transaction breaks in the middle of execution.</p>
+<p>In <code class="docutils literal notranslate"><span class="pre">accsr</span></code>, this behaviour is achieved by always inspecting the transaction summary before performing any changes on filesystems and thus rejecting a transaction entirely if collisions happen with <code class="docutils literal notranslate"><span class="pre">force=False</span></code> (the default).</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">push_and_print</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Scanning files in /__w/accsr/accsr/tests/accsr/resources: 100%|██████████| 11.0/11.0 [00:00&lt;00:00, 190it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Out of 11 files that we found inside the &#39;resources&#39; dir, we pushed 0.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<p>If we delete one file on the remote and push again, a single file will be pushed.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">deleted_files</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;resources/sample.txt&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Deleted </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">deleted_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> files.&quot;</span><span class="p">)</span>
+
+<span class="n">push_and_print</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Deleted 1 files.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Scanning files in /__w/accsr/accsr/tests/accsr/resources: 100%|██████████| 11.0/11.0 [00:00&lt;00:00, 477it/s]
+pushing (bytes): 100%|██████████| 11.0/11.0 [00:00&lt;00:00, 3.08kit/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Out of 11 files that we found inside the &#39;resources&#39; dir, we pushed 1.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<p>The same logic applies to pulling. Generally, <code class="docutils literal notranslate"><span class="pre">RemoteStorage</span></code> only downloads and uploads data if it is strictly necessary, so it is, e.g., safe to always call <code class="docutils literal notranslate"><span class="pre">pull</span></code> from some script or notebook, as nothing will be pulled if the necessary files are already present. Even pulling with <code class="docutils literal notranslate"><span class="pre">force=True</span></code> is “safe”, in the sense that it is fast. Using <code class="docutils literal notranslate"><span class="pre">force=True</span></code> is a good option for making sure that the data that one uses is the latest version from the remote.</p>
+<p>On top of the basic usage presented above, <code class="docutils literal notranslate"><span class="pre">RemoteStorage</span></code> also provides support for filtering files based on regex by passing the optional <code class="docutils literal notranslate"><span class="pre">include_regex</span></code> and <code class="docutils literal notranslate"><span class="pre">exclude_regex</span></code> parameters to corresponding methods. Also, passing glob expressions for pushing files is permitted. See the docstrings of <code class="docutils literal notranslate"><span class="pre">RemoteStorage</span></code> for more details.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Shutting down minio and going back to notebooks dir</span>
+
+<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;CI&quot;</span><span class="p">):</span>
+    <span class="c1"># In CI we start the minIO container separately</span>
+    <span class="o">!</span>docker-compose<span class="w"> </span>down
+<span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">notebooks_dir</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="accsr" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="accsr/index.html" class="btn btn-neutral float-right" title="Modules" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

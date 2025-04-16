@@ -1,0 +1,690 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>remote_storage &mdash; accsr 0.4.10-dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=34efaeff"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="loading" href="loading.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            accsr
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides and Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Quick%20Intro.html">Intro to accsr</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conversions.html">conversions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="files.html">files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="loading.html">loading</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">remote_storage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.remote_storage.Provider"><code class="docutils literal notranslate"><span class="pre">Provider</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.Provider.GOOGLE_STORAGE"><code class="docutils literal notranslate"><span class="pre">Provider.GOOGLE_STORAGE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.Provider.S3"><code class="docutils literal notranslate"><span class="pre">Provider.S3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.Provider.AZURE_BLOBS"><code class="docutils literal notranslate"><span class="pre">Provider.AZURE_BLOBS</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol"><code class="docutils literal notranslate"><span class="pre">RemoteObjectProtocol</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol.name"><code class="docutils literal notranslate"><span class="pre">RemoteObjectProtocol.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol.size"><code class="docutils literal notranslate"><span class="pre">RemoteObjectProtocol.size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol.hash"><code class="docutils literal notranslate"><span class="pre">RemoteObjectProtocol.hash</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol.provider"><code class="docutils literal notranslate"><span class="pre">RemoteObjectProtocol.provider</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol.download"><code class="docutils literal notranslate"><span class="pre">RemoteObjectProtocol.download()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.remote_storage.SyncObject"><code class="docutils literal notranslate"><span class="pre">SyncObject</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.SyncObject.name"><code class="docutils literal notranslate"><span class="pre">SyncObject.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.SyncObject.exists_on_target"><code class="docutils literal notranslate"><span class="pre">SyncObject.exists_on_target</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.SyncObject.set_local_path"><code class="docutils literal notranslate"><span class="pre">SyncObject.set_local_path()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.SyncObject.exists_on_remote"><code class="docutils literal notranslate"><span class="pre">SyncObject.exists_on_remote</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.SyncObject.equal_md5_hash_sum"><code class="docutils literal notranslate"><span class="pre">SyncObject.equal_md5_hash_sum</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.SyncObject.get_bytes_transferred"><code class="docutils literal notranslate"><span class="pre">SyncObject.get_bytes_transferred()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.SyncObject.to_dict"><code class="docutils literal notranslate"><span class="pre">SyncObject.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary"><code class="docutils literal notranslate"><span class="pre">TransactionSummary</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.matched_source_files"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.matched_source_files</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.not_on_target"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.not_on_target</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.on_target_eq_md5"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.on_target_eq_md5</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.on_target_neq_md5"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.on_target_neq_md5</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.unresolvable_collisions"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.unresolvable_collisions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.skipped_source_files"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.skipped_source_files</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.synced_files"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.synced_files</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.sync_direction"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.sync_direction</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.files_to_sync"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.files_to_sync</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.size_files_to_sync"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.size_files_to_sync()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.requires_force"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.requires_force</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.has_unresolvable_collisions"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.has_unresolvable_collisions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.all_files_analyzed"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.all_files_analyzed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.add_entry"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.add_entry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.get_short_summary_dict"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.get_short_summary_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary.print_short_summary"><code class="docutils literal notranslate"><span class="pre">TransactionSummary.print_short_summary()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.provider"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.provider</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.key"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.key</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.bucket"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.bucket</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.secret"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.secret</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.region"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.region</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.host"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.host</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.port"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.port</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.base_path"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.base_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.secure"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.secure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.use_pbar"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.use_pbar</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.log_level"><code class="docutils literal notranslate"><span class="pre">RemoteStorageConfig.log_level</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage"><code class="docutils literal notranslate"><span class="pre">RemoteStorage</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.create_bucket"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.create_bucket()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.conf"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.conf</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.provider"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.provider</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.remote_base_path"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.remote_base_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.set_remote_base_path"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.set_remote_base_path()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.bucket"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.bucket</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.driver"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.driver</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.pull"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.pull()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.get_push_remote_path"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.get_push_remote_path()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.push"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.push()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.delete"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.delete()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.remote_storage.RemoteStorage.list_objects"><code class="docutils literal notranslate"><span class="pre">RemoteStorage.list_objects()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">accsr</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Modules</a></li>
+      <li class="breadcrumb-item active">remote_storage</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/accsr/remote_storage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-accsr.remote_storage">
+<span id="remote-storage"></span><h1>remote_storage<a class="headerlink" href="#module-accsr.remote_storage" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="accsr.remote_storage.Provider">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Provider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/remote_storage.py#L100"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.remote_storage.Provider" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.Provider.GOOGLE_STORAGE">
+<span class="sig-name descname"><span class="pre">GOOGLE_STORAGE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'google_storage'</span></em><a class="headerlink" href="#accsr.remote_storage.Provider.GOOGLE_STORAGE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.Provider.S3">
+<span class="sig-name descname"><span class="pre">S3</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'s3'</span></em><a class="headerlink" href="#accsr.remote_storage.Provider.S3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.Provider.AZURE_BLOBS">
+<span class="sig-name descname"><span class="pre">AZURE_BLOBS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'azure_blobs'</span></em><a class="headerlink" href="#accsr.remote_storage.Provider.AZURE_BLOBS" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteObjectProtocol">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RemoteObjectProtocol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/remote_storage.py#L107"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.remote_storage.RemoteObjectProtocol" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Protocol</span></code></p>
+<p>Protocol of classes that describe remote objects. Describes information about the remote object and functionality
+to download the object.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteObjectProtocol.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteObjectProtocol.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteObjectProtocol.size">
+<span class="sig-name descname"><span class="pre">size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteObjectProtocol.size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteObjectProtocol.hash">
+<span class="sig-name descname"><span class="pre">hash</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteObjectProtocol.hash" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteObjectProtocol.provider">
+<span class="sig-name descname"><span class="pre">provider</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#accsr.remote_storage.Provider" title="accsr.remote_storage.Provider"><span class="pre">Provider</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteObjectProtocol.provider" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteObjectProtocol.download">
+<span class="sig-name descname"><span class="pre">download</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">download_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite_existing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol" title="accsr.remote_storage.RemoteObjectProtocol"><span class="pre">RemoteObjectProtocol</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#accsr.remote_storage.RemoteObjectProtocol.download" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="accsr.remote_storage.SyncObject">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SyncObject</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sync_direction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'push'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'pull'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote_obj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol" title="accsr.remote_storage.RemoteObjectProtocol"><span class="pre">RemoteObjectProtocol</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote_obj_overridden_md5_hash</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/remote_storage.py#L124"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.remote_storage.SyncObject" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">_JsonReprMixin</span></code></p>
+<p>Class representing the sync-status between a local path and a remote object. Is mainly used for creating
+summaries and syncing within RemoteStorage and for introspection before and after push/pull transactions.</p>
+<p>It is not recommended creating or manipulating instances of this class outside RemoteStorage, in particular
+in user code. This class forms part of the public interface because instances of it are given to users for
+introspection.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.SyncObject.name">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#accsr.remote_storage.SyncObject.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.SyncObject.exists_on_target">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">exists_on_target</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#accsr.remote_storage.SyncObject.exists_on_target" title="Link to this definition"></a></dt>
+<dd><p>True iff the file exists on both locations</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.SyncObject.set_local_path">
+<span class="sig-name descname"><span class="pre">set_local_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#accsr.remote_storage.SyncObject.set_local_path" title="Link to this definition"></a></dt>
+<dd><p>Changes the local path of the SyncObject
+:param path:
+:return: None</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.SyncObject.exists_on_remote">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">exists_on_remote</span></span><a class="headerlink" href="#accsr.remote_storage.SyncObject.exists_on_remote" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.SyncObject.equal_md5_hash_sum">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">equal_md5_hash_sum</span></span><a class="headerlink" href="#accsr.remote_storage.SyncObject.equal_md5_hash_sum" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.SyncObject.get_bytes_transferred">
+<span class="sig-name descname"><span class="pre">get_bytes_transferred</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#accsr.remote_storage.SyncObject.get_bytes_transferred" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the number of bytes (to be) transferred for this object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.SyncObject.to_dict">
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">make_serializable</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#accsr.remote_storage.SyncObject.to_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">TransactionSummary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matched_source_files:</span> <span class="pre">~typing.List[~accsr.remote_storage.SyncObject]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">not_on_target:</span> <span class="pre">~typing.List[~accsr.remote_storage.SyncObject]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">on_target_eq_md5:</span> <span class="pre">~typing.List[~accsr.remote_storage.SyncObject]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">on_target_neq_md5:</span> <span class="pre">~typing.List[~accsr.remote_storage.SyncObject]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unresolvable_collisions:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">~typing.List[~accsr.remote_storage.RemoteObjectProtocol]</span> <span class="pre">|</span> <span class="pre">str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skipped_source_files:</span> <span class="pre">~typing.List[~accsr.remote_storage.SyncObject]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">synced_files:</span> <span class="pre">~typing.List[~accsr.remote_storage.SyncObject]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sync_direction:</span> <span class="pre">~typing.Literal['push'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'pull']</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/remote_storage.py#L271"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.remote_storage.TransactionSummary" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">_JsonReprMixin</span></code></p>
+<p>Class representing the summary of a push or pull operation. Is mainly used for introspection before and after
+push/pull transactions.</p>
+<p>It is not recommended creating or manipulate instances of this class outside RemoteStorage, in particular
+in user code. This class forms part of the public interface because instances of it are given to users for
+introspection.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.matched_source_files">
+<span class="sig-name descname"><span class="pre">matched_source_files</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.SyncObject" title="accsr.remote_storage.SyncObject"><span class="pre">SyncObject</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.matched_source_files" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.not_on_target">
+<span class="sig-name descname"><span class="pre">not_on_target</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.SyncObject" title="accsr.remote_storage.SyncObject"><span class="pre">SyncObject</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.not_on_target" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.on_target_eq_md5">
+<span class="sig-name descname"><span class="pre">on_target_eq_md5</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.SyncObject" title="accsr.remote_storage.SyncObject"><span class="pre">SyncObject</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.on_target_eq_md5" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.on_target_neq_md5">
+<span class="sig-name descname"><span class="pre">on_target_neq_md5</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.SyncObject" title="accsr.remote_storage.SyncObject"><span class="pre">SyncObject</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.on_target_neq_md5" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.unresolvable_collisions">
+<span class="sig-name descname"><span class="pre">unresolvable_collisions</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol" title="accsr.remote_storage.RemoteObjectProtocol"><span class="pre">RemoteObjectProtocol</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.unresolvable_collisions" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.skipped_source_files">
+<span class="sig-name descname"><span class="pre">skipped_source_files</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.SyncObject" title="accsr.remote_storage.SyncObject"><span class="pre">SyncObject</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.skipped_source_files" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.synced_files">
+<span class="sig-name descname"><span class="pre">synced_files</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.SyncObject" title="accsr.remote_storage.SyncObject"><span class="pre">SyncObject</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.synced_files" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.sync_direction">
+<span class="sig-name descname"><span class="pre">sync_direction</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'push'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'pull'</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.sync_direction" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.files_to_sync">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">files_to_sync</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.SyncObject" title="accsr.remote_storage.SyncObject"><span class="pre">SyncObject</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.files_to_sync" title="Link to this definition"></a></dt>
+<dd><p>Returns of files that need synchronization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of all files that are not on the target or have different md5sums on target and remote</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.size_files_to_sync">
+<span class="sig-name descname"><span class="pre">size_files_to_sync</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.size_files_to_sync" title="Link to this definition"></a></dt>
+<dd><p>Computes the total size of all objects that need synchronization. Raises a RuntimeError if the sync_direction
+property is not set to ‘push’ or ‘pull’.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the total size of all local objects that need synchronization if self.sync_direction=’push’ and
+the size of all remote files that need synchronization if self.sync_direction=’pull’</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.requires_force">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">requires_force</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.requires_force" title="Link to this definition"></a></dt>
+<dd><p>Getter of the requires_force property.
+:return: True iff a failure of the transaction can only be prevented by setting force=True.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.has_unresolvable_collisions">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">has_unresolvable_collisions</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.has_unresolvable_collisions" title="Link to this definition"></a></dt>
+<dd><p>Getter of the requires_force property.
+:return: True iff there exists a collision that cannot be resolved.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.all_files_analyzed">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">all_files_analyzed</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.SyncObject" title="accsr.remote_storage.SyncObject"><span class="pre">SyncObject</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.all_files_analyzed" title="Link to this definition"></a></dt>
+<dd><p>Getter of the all_files_analyzed property.
+:return: list of all analyzed source files</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.add_entry">
+<span class="sig-name descname"><span class="pre">add_entry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">synced_object</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#accsr.remote_storage.SyncObject" title="accsr.remote_storage.SyncObject"><span class="pre">SyncObject</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">collides_with</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol" title="accsr.remote_storage.RemoteObjectProtocol"><span class="pre">RemoteObjectProtocol</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.add_entry" title="Link to this definition"></a></dt>
+<dd><p>Adds a SyncObject to the summary.
+:param synced_object: either a SyncObject or a path to a local file.
+:param collides_with: specification of unresolvable collisions for the given sync object
+:param skip: if True, the object is marked to be skipped
+:return: None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.get_short_summary_dict">
+<span class="sig-name descname"><span class="pre">get_short_summary_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.get_short_summary_dict" title="Link to this definition"></a></dt>
+<dd><p>Returns a short summary of the transaction as a dictionary.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.TransactionSummary.print_short_summary">
+<span class="sig-name descname"><span class="pre">print_short_summary</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#accsr.remote_storage.TransactionSummary.print_short_summary" title="Link to this definition"></a></dt>
+<dd><p>Prints a short summary of the transaction (shorter than the full repr, which contains
+information about local and remote objects).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RemoteStorageConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">provider</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bucket</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secret</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">port</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secure</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_pbar</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/remote_storage.py#L390"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Contains all necessary information to establish a connection
+to a bucket within the remote storage, and the base path on the remote.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.provider">
+<span class="sig-name descname"><span class="pre">provider</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.provider" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.key">
+<span class="sig-name descname"><span class="pre">key</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.key" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.bucket">
+<span class="sig-name descname"><span class="pre">bucket</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.bucket" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.secret">
+<span class="sig-name descname"><span class="pre">secret</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.secret" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.region">
+<span class="sig-name descname"><span class="pre">region</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.region" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.host">
+<span class="sig-name descname"><span class="pre">host</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.host" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.port">
+<span class="sig-name descname"><span class="pre">port</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.port" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.base_path">
+<span class="sig-name descname"><span class="pre">base_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.base_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.secure">
+<span class="sig-name descname"><span class="pre">secure</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.secure" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.use_pbar">
+<span class="sig-name descname"><span class="pre">use_pbar</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.use_pbar" title="Link to this definition"></a></dt>
+<dd><p>whether to use progress bars which are printed to stderr.
+If set to False, progress will instead be logged at the log level specified in <a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig.log_level" title="accsr.remote_storage.RemoteStorageConfig.log_level"><code class="xref py py-attr docutils literal notranslate"><span class="pre">log_level</span></code></a></p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorageConfig.log_level">
+<span class="sig-name descname"><span class="pre">log_level</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">20</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorageConfig.log_level" title="Link to this definition"></a></dt>
+<dd><p>level at which to log progress for the case where <cite>use_pbar</cite> is disabled.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RemoteStorage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">conf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig" title="accsr.remote_storage.RemoteStorageConfig"><span class="pre">RemoteStorageConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_extra_to_upload</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.SyncObject" title="accsr.remote_storage.SyncObject"><span class="pre">SyncObject</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote_hash_extractor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol" title="accsr.remote_storage.RemoteObjectProtocol"><span class="pre">RemoteObjectProtocol</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/remote_storage.py#L416"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.remote_storage.RemoteStorage" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Wrapper around lib-cloud for accessing remote storage services.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.create_bucket">
+<span class="sig-name descname"><span class="pre">create_bucket</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">exist_ok</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.create_bucket" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.conf">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">conf</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#accsr.remote_storage.RemoteStorageConfig" title="accsr.remote_storage.RemoteStorageConfig"><span class="pre">RemoteStorageConfig</span></a></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.conf" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.provider">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">provider</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.provider" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.remote_base_path">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">remote_base_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.remote_base_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.set_remote_base_path">
+<span class="sig-name descname"><span class="pre">set_remote_base_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.set_remote_base_path" title="Link to this definition"></a></dt>
+<dd><p>Changes the base path in the remote storage
+(overriding the base path extracted from RemoteStorageConfig during instantiation).
+Pull and push operations will only affect files within the remote base path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> – a path with linux-like separators</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.bucket">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bucket</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Container</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.bucket" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.driver">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">driver</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">StorageDriver</span></em><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.driver" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.pull">
+<span class="sig-name descname"><span class="pre">pull</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">remote_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_base_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_regex</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Pattern</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_regex</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Pattern</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_to_linux_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dryrun</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path_regex</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Pattern</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strip_abspath_prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strip_abs_local_base_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_pbar</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary" title="accsr.remote_storage.TransactionSummary"><span class="pre">TransactionSummary</span></a></span></span><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.pull" title="Link to this definition"></a></dt>
+<dd><p>Pull either a file or a directory under the given path relative to local_base_dir.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>remote_path</strong> – remote path on storage bucket relative to the configured remote base path.
+e.g. ‘data/ground_truth/some_file.json’. Can also be an absolute local path if <code class="docutils literal notranslate"><span class="pre">strip_abspath_prefix</span></code>
+is specified.</p></li>
+<li><p><strong>local_base_dir</strong> – Local base directory for constructing local path
+e.g. passing ‘local_base_dir’ will download to the path
+‘local_base_dir/data/ground_truth/some_file.json’ in the above example</p></li>
+<li><p><strong>force</strong> – If False, pull will raise an error if an already existing file deviates from the remote in
+its md5sum. If True, these files are overwritten.</p></li>
+<li><p><strong>include_regex</strong> – If not None only files with paths matching the regex will be pulled. This is useful for
+filtering files within a remote directory before pulling them.</p></li>
+<li><p><strong>exclude_regex</strong> – If not None, files with paths matching the regex will be excluded from the pull.
+Takes precedence over <code class="docutils literal notranslate"><span class="pre">include_regex</span></code>, i.e. if a file matches both, it will be excluded.</p></li>
+<li><p><strong>convert_to_linux_path</strong> – if True, will convert windows path to linux path (as needed by remote storage) and
+thus passing a remote path like ‘datamypath’ will be converted to ‘data/my/path’ before pulling.
+This should only be set to False if you want to pull a remote object with ‘' in its file name
+(which is discouraged).</p></li>
+<li><p><strong>dryrun</strong> – If True, simulates the pull operation and returns the remote objects that would have been pulled.</p></li>
+<li><p><strong>path_regex</strong> – DEPRECATED! Use <code class="docutils literal notranslate"><span class="pre">include_regex</span></code> instead.</p></li>
+<li><p><strong>strip_abspath_prefix</strong> – Will only have an effect if the <cite>remote_path</cite> is absolute.
+Then the given prefix is removed from it before pulling. This is useful for pulling files from a remote storage
+by directly specifying absolute local paths instead of first converting them to actual remote paths.
+Similar in logic to <cite>local_path_prefix</cite> in <cite>push</cite>.
+A common use case is to always set <cite>local_base_dir</cite> to the same value and to always pass absolute paths
+as <cite>remote_path</cite> to <cite>pull</cite>.</p></li>
+<li><p><strong>strip_abs_local_base_dir</strong> – If True, and <cite>local_base_dir</cite> is an absolute path, then
+the <cite>local_base_dir</cite> will be treated as <cite>strip_abspath_prefix</cite>. See explanation of <cite>strip_abspath_prefix</cite>.</p></li>
+<li><p><strong>use_pbar</strong> – If not None, overrides the configured default value for this flag.
+Specifically, if True, will use a progress bar for the pull operation; if False, will use logging.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>An object describing the summary of the operation.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.get_push_remote_path">
+<span class="sig-name descname"><span class="pre">get_push_remote_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">local_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.get_push_remote_path" title="Link to this definition"></a></dt>
+<dd><p>Get the full path within a remote storage bucket for pushing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>local_path</strong> – the local path to the file</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the remote path that corresponds to the local path</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.push">
+<span class="sig-name descname"><span class="pre">push</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_path_prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_regex</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Pattern</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_regex</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Pattern</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dryrun</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path_regex</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Pattern</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_pbar</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#accsr.remote_storage.TransactionSummary" title="accsr.remote_storage.TransactionSummary"><span class="pre">TransactionSummary</span></a></span></span><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.push" title="Link to this definition"></a></dt>
+<dd><p>Upload files into the remote storage.
+Does not upload files for which the md5sum matches existing remote files.
+The remote path for uploading will be constructed from the remote_base_path and the provided path.
+The <cite>local_path_prefix</cite> serves for finding the directory on the local system or for stripping off
+parts of absolute paths if path is absolute, see examples below.</p>
+<p class="rubric">Examples</p>
+<ol class="arabic simple">
+<li><dl class="simple">
+<dt>path=foo/bar, local_path_prefix=None –&gt;</dt><dd><p>./foo/bar uploaded to remote_base_path/foo/bar</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>path=/home/foo/bar, local_path_prefix=None –&gt;</dt><dd><p>/home/foo/bar uploaded to remote_base_path/home/foo/bar</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>path=bar, local_path_prefix=/home/foo –&gt;</dt><dd><p>/home/foo/bar uploaded to remote_base_path/bar</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>path=/home/foo/bar, local_path_prefix=/home/foo –&gt;</dt><dd><p>/home/foo/bar uploaded to remote_base_path/bar (Same as 3)</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>path=/home/baz/bar, local_path_prefix=/home/foo –&gt;</dt><dd><p>ValueError: Specified path=/home/baz/bar is not a child of local_path_prefix=/home/foo</p>
+</dd>
+</dl>
+</li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path to the local object (file or directory) to be uploaded, may be absolute or relative.
+globs are supported as well, thus <code class="docutils literal notranslate"><span class="pre">path</span></code> may be a pattern like <code class="docutils literal notranslate"><span class="pre">*.txt</span></code>.</p></li>
+<li><p><strong>local_path_prefix</strong> – Prefix to be concatenated with <code class="docutils literal notranslate"><span class="pre">path</span></code></p></li>
+<li><p><strong>force</strong> – If False, push will raise an error if an already existing remote file deviates from the local
+in its md5sum. If True, these files are overwritten.</p></li>
+<li><p><strong>include_regex</strong> – If not None, only files with paths matching the regex will be pushed.
+Note that paths matched against the regex will be relative to <code class="docutils literal notranslate"><span class="pre">local_path_prefix</span></code>.</p></li>
+<li><p><strong>exclude_regex</strong> – If not None, only files with paths not matching the regex will be pushed. Takes precedence
+over <code class="docutils literal notranslate"><span class="pre">include_regex</span></code>, i.e. if a file matches both regexes, it will be excluded.
+Note that paths matched against the regex will be relative to <code class="docutils literal notranslate"><span class="pre">local_path_prefix</span></code>.</p></li>
+<li><p><strong>dryrun</strong> – If True, simulates the push operation and returns the summary
+(with synced_files being an empty list).</p></li>
+<li><p><strong>path_regex</strong> – DEPRECATED! Same as <code class="docutils literal notranslate"><span class="pre">include_regex</span></code>.</p></li>
+<li><p><strong>use_pbar</strong> – If not None, overrides the configured default value for this flag.
+Specifically, if True, will use a progress bar for the pull operation; if False, will use logging.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>An object describing the summary of the operation.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.delete">
+<span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">remote_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_regex</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Pattern</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_regex</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Pattern</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path_regex</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Pattern</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol" title="accsr.remote_storage.RemoteObjectProtocol"><span class="pre">RemoteObjectProtocol</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.delete" title="Link to this definition"></a></dt>
+<dd><p>Deletes a file or a directory under the given path relative to local_base_dir. Use with caution!</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>remote_path</strong> – remote path on storage bucket relative to the configured remote base path.</p></li>
+<li><p><strong>include_regex</strong> – If not None only files with paths matching the regex will be deleted.</p></li>
+<li><p><strong>exclude_regex</strong> – If not None only files with paths not matching the regex will be deleted.
+Takes precedence over <code class="docutils literal notranslate"><span class="pre">include_regex</span></code>, i.e. if a file matches both regexes, it will be excluded.</p></li>
+<li><p><strong>path_regex</strong> – DEPRECATED! Same as <code class="docutils literal notranslate"><span class="pre">include_regex</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>list of remote objects referring to all deleted files</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.remote_storage.RemoteStorage.list_objects">
+<span class="sig-name descname"><span class="pre">list_objects</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">remote_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#accsr.remote_storage.RemoteObjectProtocol" title="accsr.remote_storage.RemoteObjectProtocol"><span class="pre">RemoteObjectProtocol</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#accsr.remote_storage.RemoteStorage.list_objects" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>remote_path</strong> – remote path on storage bucket relative to the configured remote base path.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>list of remote objects under the remote path (multiple entries if the remote path is a directory)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="loading.html" class="btn btn-neutral float-left" title="loading" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

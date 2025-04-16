@@ -1,0 +1,368 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>config &mdash; accsr 0.4.10-dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=34efaeff"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="conversions" href="conversions.html" />
+    <link rel="prev" title="Modules" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            accsr
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides and Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Quick%20Intro.html">Intro to accsr</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Modules</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">config</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.config.recursive_dict_update"><code class="docutils literal notranslate"><span class="pre">recursive_dict_update()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.config.get_config_reader"><code class="docutils literal notranslate"><span class="pre">get_config_reader()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.config.ConfigurationBase"><code class="docutils literal notranslate"><span class="pre">ConfigurationBase</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.ConfigurationBase.ENV_VAR_MARKER"><code class="docutils literal notranslate"><span class="pre">ConfigurationBase.ENV_VAR_MARKER</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.PROCESSED"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.PROCESSED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.RAW"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.RAW</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.CLEANED"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.CLEANED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.GROUND_TRUTH"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.GROUND_TRUTH</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.DATA"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.DATA</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.artifacts"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.artifacts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.visualizations"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.visualizations</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.temp"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.temp</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.data"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.data</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.data_raw"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.data_raw</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.data_cleaned"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.data_cleaned</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.data_processed"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.data_processed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.data_ground_truth"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.data_ground_truth</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.datafile_path"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.datafile_path()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.DefaultDataConfiguration.artifact_path"><code class="docutils literal notranslate"><span class="pre">DefaultDataConfiguration.artifact_path()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#accsr.config.ConfigProviderBase"><code class="docutils literal notranslate"><span class="pre">ConfigProviderBase</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#accsr.config.ConfigProviderBase.get_config"><code class="docutils literal notranslate"><span class="pre">ConfigProviderBase.get_config()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="conversions.html">conversions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="files.html">files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="loading.html">loading</a></li>
+<li class="toctree-l2"><a class="reference internal" href="remote_storage.html">remote_storage</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">accsr</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Modules</a></li>
+      <li class="breadcrumb-item active">config</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/accsr/config.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-accsr.config">
+<span id="config"></span><h1>config<a class="headerlink" href="#module-accsr.config" title="Link to this heading"></a></h1>
+<p>Contains helpers for defining and providing configuration classes. A typical usage would be to create the files
+<em>config.py</em>, <em>config.json</em> and <em>config_local.json</em> in a project’s root directory. An example of a config.py for a
+data-driven project is below. For a non-data driven project, the configuration class should inherit from
+<code class="docutils literal notranslate"><span class="pre">accsr.config.ConfigurationBase</span></code>, and the resulting class will not have any pre-populated public entries.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">accsr.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">DefaultDataConfiguration</span><span class="p">,</span> <span class="n">ConfigProviderBase</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span><span class="w"> </span><span class="nc">__Configuration</span><span class="p">(</span><span class="n">DefaultDataConfiguration</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="nd">@property</span>
+<span class="gp">... </span>    <span class="k">def</span><span class="w"> </span><span class="nf">custom_entry_from_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="gp">... </span>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_non_empty_entry</span><span class="p">(</span><span class="s2">&quot;custom_entry_from_config&quot;</span><span class="p">)</span>
+<span class="gp">...</span>
+<span class="gp">... </span>    <span class="nd">@property</span>
+<span class="gp">... </span>    <span class="k">def</span><span class="w"> </span><span class="nf">existing_path_in_base_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="gp">... </span>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_existing_path</span><span class="p">([</span><span class="s2">&quot;base_dir&quot;</span><span class="p">,</span> <span class="s2">&quot;path_in_base_dir&quot;</span><span class="p">])</span>
+<span class="gp">...</span>
+<span class="gp">... </span>    <span class="nd">@property</span>
+<span class="gp">... </span>    <span class="k">def</span><span class="w"> </span><span class="nf">custom_path_in_processed_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="gp">... </span>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datafile_path</span><span class="p">(</span><span class="s2">&quot;my_data&quot;</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROCESSED</span><span class="p">,</span> <span class="n">check_existence</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span><span class="w"> </span><span class="nc">ConfigProvider</span><span class="p">(</span><span class="n">ConfigProviderBase</span><span class="p">[</span><span class="n">__Configuration</span><span class="p">]):</span>
+<span class="gp">... </span>    <span class="k">pass</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">_config_provider</span> <span class="o">=</span> <span class="n">ConfigProvider</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span><span class="w"> </span><span class="nf">get_config</span><span class="p">(</span><span class="n">reload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="k">return</span> <span class="n">_config_provider</span><span class="o">.</span><span class="n">get_config</span><span class="p">(</span><span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py function">
+<dt class="sig sig-object py" id="accsr.config.recursive_dict_update">
+<span class="sig-name descname"><span class="pre">recursive_dict_update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/config.py#L45"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.config.recursive_dict_update" title="Link to this definition"></a></dt>
+<dd><p>Modifies d inplace by overwriting with non-dict values from u and updating all dict-values recursively.
+Returns the modified d.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="accsr.config.get_config_reader">
+<span class="sig-name descname"><span class="pre">get_config_reader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">TextIO</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/config.py#L83"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.config.get_config_reader" title="Link to this definition"></a></dt>
+<dd><p>Returns a reader for yaml or json files. The file type is determined by the file extension.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="accsr.config.ConfigurationBase">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ConfigurationBase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('config.json',</span> <span class="pre">'config_local.json')</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/config.py#L98"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.config.ConfigurationBase" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Base class for reading and retrieving configuration entries. Do not instantiate this class directly but
+instead inherit from it.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.config.ConfigurationBase.ENV_VAR_MARKER">
+<span class="sig-name descname"><span class="pre">ENV_VAR_MARKER</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'env:'</span></em><a class="headerlink" href="#accsr.config.ConfigurationBase.ENV_VAR_MARKER" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DefaultDataConfiguration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('config.json',</span> <span class="pre">'config_local.json')</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/config.py#L206"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.config.DefaultDataConfiguration" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#accsr.config.ConfigurationBase" title="accsr.config.ConfigurationBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ConfigurationBase</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Reads default configuration entries and contains retrieval methods for a typical data-driven project.
+A typical config.json file would look like this:</p>
+<div class="line-block">
+<div class="line">{</div>
+<div class="line-block">
+<div class="line">“data_raw”: “data/raw”,</div>
+<div class="line">“data_cleaned”: “data/cleaned”,</div>
+<div class="line">“data_processed”: “data/processed”,</div>
+<div class="line">“data_ground_truth”: “data/ground_truth”,</div>
+<div class="line">“visualizations”: “data/visualizations”,</div>
+<div class="line">“artifacts”: “data/artifacts”,</div>
+<div class="line">“temp”: “temp”,</div>
+<div class="line">“data”: “data”</div>
+</div>
+<div class="line">}</div>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.PROCESSED">
+<span class="sig-name descname"><span class="pre">PROCESSED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'processed'</span></em><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.PROCESSED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.RAW">
+<span class="sig-name descname"><span class="pre">RAW</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'raw'</span></em><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.RAW" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.CLEANED">
+<span class="sig-name descname"><span class="pre">CLEANED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'cleaned'</span></em><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.CLEANED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.GROUND_TRUTH">
+<span class="sig-name descname"><span class="pre">GROUND_TRUTH</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'ground_truth'</span></em><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.GROUND_TRUTH" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.DATA">
+<span class="sig-name descname"><span class="pre">DATA</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'data'</span></em><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.DATA" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.artifacts">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">artifacts</span></span><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.artifacts" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.visualizations">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">visualizations</span></span><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.visualizations" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.temp">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temp</span></span><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.temp" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.data">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data</span></span><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.data" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.data_raw">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data_raw</span></span><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.data_raw" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.data_cleaned">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data_cleaned</span></span><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.data_cleaned" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.data_processed">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data_processed</span></span><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.data_processed" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.data_ground_truth">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data_ground_truth</span></span><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.data_ground_truth" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.datafile_path">
+<span class="sig-name descname"><span class="pre">datafile_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stage</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'raw'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">check_existence</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.datafile_path" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong></p></li>
+<li><p><strong>stage</strong> – raw, ground_truth, cleaned or processed</p></li>
+<li><p><strong>relative</strong> – If True, the returned path will be relative the project’s top-level directory</p></li>
+<li><p><strong>check_existence</strong> – if True, will raise an error when file does not exist</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.config.DefaultDataConfiguration.artifact_path">
+<span class="sig-name descname"><span class="pre">artifact_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">check_existence</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#accsr.config.DefaultDataConfiguration.artifact_path" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong></p></li>
+<li><p><strong>relative</strong> – If true, the returned path will be relative the project’s top-level directory.</p></li>
+<li><p><strong>check_existence</strong> – if True, will raise an error when file does not exist</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="accsr.config.ConfigProviderBase">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ConfigProviderBase</span></span><a class="reference external" href="https://github.com/appliedAI-Initiative/accsr/blob/develop/src/accsr/config.py#L306"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#accsr.config.ConfigProviderBase" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Generic</span></code>[<code class="xref py py-obj docutils literal notranslate"><span class="pre">ConfigurationClass</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Class for providing a config-singleton. Should not be instantiated directly but instead subclassed with an
+appropriate subclass of ConfigurationBase substituting the generic type.</p>
+<dl>
+<dt>Usage example:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">accsr.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConfigurationBase</span><span class="p">,</span> <span class="n">ConfigProviderBase</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span><span class="w"> </span><span class="nc">__MyConfigClass</span><span class="p">(</span><span class="n">ConfigurationBase</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="k">pass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span><span class="w"> </span><span class="nc">__MyConfigProvider</span><span class="p">(</span><span class="n">ConfigProviderBase</span><span class="p">[</span><span class="n">__MyConfigClass</span><span class="p">]):</span>
+<span class="gp">... </span>    <span class="k">pass</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">_config_provider</span> <span class="o">=</span> <span class="n">__MyConfigProvider</span><span class="p">()</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span><span class="w"> </span><span class="nf">get_config</span><span class="p">():</span>
+<span class="gp">... </span>    <span class="k">return</span> <span class="n">_config_provider</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="accsr.config.ConfigProviderBase.get_config">
+<span class="sig-name descname"><span class="pre">get_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reload</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ConfigurationClass</span></span></span><a class="headerlink" href="#accsr.config.ConfigProviderBase.get_config" title="Link to this definition"></a></dt>
+<dd><p>Retrieves the configuration object (as singleton).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>reload</strong> – if True, the config will be reloaded from disk even if a suitable
+configuration object already exists. This is mainly useful in interactive environments like notebooks.</p></li>
+<li><p><strong>args</strong> – passed to init of the configuration class</p></li>
+<li><p><strong>kwargs</strong> – passed to init of the configuration class constructor</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Modules" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="conversions.html" class="btn btn-neutral float-right" title="conversions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
